@@ -77,6 +77,13 @@ def init_and_seed_db():
         c.execute("ALTER TABLE screenings ADD COLUMN reporter_username TEXT DEFAULT ''")
     except sqlite3.OperationalError:
         pass
+        
+    
+    try:
+        c.execute("ALTER TABLE transition_reviews ADD COLUMN reviewer_username TEXT DEFAULT 'tv_nam'")
+    except sqlite3.OperationalError:
+        pass
+    # --------------------------------------------------------
     # --------------------------------------------------------
 
     # 5. Bảng nhật ký tiến triển (Bước 4 & 5)
