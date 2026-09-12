@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import sqlite3
 from datetime import date, timedelta
 
@@ -61,7 +62,7 @@ def init_and_seed_db():
     try:
         c.execute("ALTER TABLE iep_plans ADD COLUMN approved_by TEXT DEFAULT 'Chờ duyệt'")
     except sqlite3.OperationalError:
-        pass  # Đã có cột approved_by
+        pass
         
     try:
         c.execute("ALTER TABLE progress_logs ADD COLUMN target_skill TEXT DEFAULT ''")
@@ -78,12 +79,10 @@ def init_and_seed_db():
     except sqlite3.OperationalError:
         pass
         
-    
     try:
         c.execute("ALTER TABLE transition_reviews ADD COLUMN reviewer_username TEXT DEFAULT 'tv_nam'")
     except sqlite3.OperationalError:
         pass
-    # --------------------------------------------------------
     # --------------------------------------------------------
 
     # 5. Bảng nhật ký tiến triển (Bước 4 & 5)
@@ -172,10 +171,9 @@ init_and_seed_db()
 st.set_page_config(page_title="Nền tảng Hỗ trợ Hòa nhập Học sinh RLPTK", layout="wide", page_icon="🏫")
 conn = get_db()
 
-# Ma trận phân quyền
 ROLE_PERMISSIONS = {
     "Giáo viên chủ nhiệm / Bộ môn": {
-        "can_edit_student": True,  # Cho phép cập nhật thông tin học sinh
+        "can_edit_student": True,
         "can_create_iep": False,
         "can_approve": False,
         "can_trans": False,
@@ -204,7 +202,6 @@ ROLE_PERMISSIONS = {
     }
 }
 
-# Sidebar - Quản lý tài khoản
 st.sidebar.title("HỆ THỐNG HÒA NHẬP")
 st.sidebar.caption("Chuyển đổi số theo TT 11/2024 & TT 21/2023")
 
@@ -219,7 +216,6 @@ current_role = current_user_row['role']
 st.sidebar.markdown(f"**Vai trò hiện tại:** `{current_role}`")
 st.sidebar.info(f"📌 **Nhiệm vụ:** {ROLE_PERMISSIONS[current_role]['desc']}")
 
-# Menu điều hướng đầy đủ các bước
 all_steps = [
     "Sơ đồ Mô phỏng & Tổng quan",
     "Bước 0: Quản lý & Nhập Hồ sơ Học sinh",
@@ -271,6 +267,25 @@ if step == "Sơ đồ Mô phỏng & Tổng quan":
             """, unsafe_allow_html=True)
             
     st.write("")
+    
+    # Trực quan hóa Sankey Diagram minh họa luồng dữ liệu
+    st.subheader("Trực Quan Hóa Luồng Dữ Liệu & Phối Hợp Đa Lực Lượng")
+    fig_flow = go.Figure(data=[go.Sankey(
+        node=dict(
+            pad=15, thickness=20, line=dict(color="black", width=0.5),
+            label=["Giáo viên / PH (Nhận diện)", "Cán bộ TVHS (Điều phối)", "Nhân viên GDHN (Can thiệp)",
+                   "Hồ sơ sàng lọc", "Kế hoạch IEP", "Lớp học hòa nhập", "Chuyển tiếp cấp học"],
+            color=["#38BDF8", "#FBBF24", "#34D399", "#94A3B8", "#A78BFA", "#F472B6", "#4ADE80"]
+        ),
+        link=dict(
+            source=[0, 1, 1, 2, 4, 5],
+            target=[3, 1, 4, 4, 5, 6],
+            value=[4, 3, 3, 3, 5, 2]
+        )
+    )])
+    fig_flow.update_layout(height=280, margin=dict(l=10, r=10, t=20, b=10))
+    st.plotly_chart(fig_flow, use_container_width=True)
+
     st.subheader("Ma Trận Trách Nhiệm Nghiệp Vụ (RACI Matrix)")
     raci_data = pd.DataFrame([
         {"Bước nghiệp vụ": "Bước 1: Sàng lọc & Tiếp nhận lo ngại", "GV Chủ nhiệm": "Chủ trì (R)", "Tư vấn HS": "Phối hợp (C)", "NV Hỗ trợ GDHN": "Tham vấn (I)", "Phụ huynh": "Đồng thuận (A)"},
@@ -284,7 +299,7 @@ if step == "Sơ đồ Mô phỏng & Tổng quan":
     st.caption("*(R: Responsible - Thực hiện | A: Accountable - Phê duyệt | C: Consulted - Tham vấn | I: Informed - Nhận thông tin)*")
 
 # ==========================================
-# BƯỚC 0: NHẬP VÀ QUẢN LÝ HỒ SƠ HỌC SINH (KHÔI PHỤC THEO YÊU CẦU)
+# BƯỚC 0: NHẬP VÀ QUẢN LÝ HỒ SƠ HỌC SINH
 # ==========================================
 elif step == "Bước 0: Quản lý & Nhập Hồ sơ Học sinh":
     st.header("Quản Lý & Nhập Hồ Sơ Học Sinh Hòa Nhập")
@@ -318,16 +333,23 @@ elif step == "Bước 0: Quản lý & Nhập Hồ sơ Học sinh":
                     st.error("Vui lòng điền tối thiểu Mã học sinh và Tên viết tắt!")
 
     with col_list:
-        st.subheader("Danh Sách Hồ Sơ Học Sinh Đang Quản Lý")
+        st.subheader("Phân Bổ Học Sinh Theo Khối Lớp")
         students_current = pd.read_sql("SELECT student_id, alias_name, grade, strengths, challenges, accommodations FROM students", conn)
+        
+        # Biểu đồ phân bố khối lớp
+        grade_counts = students_current['grade'].value_counts().reset_index()
+        grade_counts.columns = ['Khối lớp', 'Số lượng HS']
+        fig_grade = px.bar(grade_counts, x='Khối lớp', y='Số lượng HS', color='Khối lớp', text='Số lượng HS')
+        fig_grade.update_layout(height=230, showlegend=False, margin=dict(l=10, r=10, t=10, b=10))
+        st.plotly_chart(fig_grade, use_container_width=True)
         st.dataframe(students_current, use_container_width=True)
 
 # ==========================================
 # BƯỚC 1: TIẾP NHẬN & NHẬN DIỆN NGUY CƠ
 # ==========================================
 elif step == "Bước 1: Tiếp nhận & Nhận diện nguy cơ":
-    st.header("Bước 1: Tiếp nhận lo ngại & Nhận diện có cấu trúc")
-    st.warning("⚠️ **Nguyên tắc đạo đức dữ liệu:** Bảng kiểm chỉ hỗ trợ nhận diện sơ bộ dấu hiệu cần đánh giá thêm. Hệ thống tuyệt đối **không đưa ra kết luận chẩn đoán** thay thế bác sĩ/chuyên gia lâm sàng.")
+    st.header("Bước 1: Tiếp nhận lo ngại & Nhận diện có cấu trúc[cite: 1]")
+    st.warning("⚠️ **Nguyên tắc đạo đức dữ liệu:** Bảng kiểm chỉ hỗ trợ nhận diện sơ bộ dấu hiệu cần đánh giá thêm. Hệ thống tuyệt đối **không đưa ra kết luận chẩn đoán** thay thế bác sĩ/chuyên gia lâm sàng[cite: 1].")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -339,7 +361,7 @@ elif step == "Bước 1: Tiếp nhận & Nhận diện nguy cơ":
             context = st.selectbox("Bối cảnh quan sát chính:", ["Trong giờ học", "Giờ ra chơi", "Hoạt động nhóm", "Lúc chuyển tiết", "Tại gia đình"])
             
             st.write("---")
-            st.write("**Bảng kiểm quan sát hành vi có cấu trúc:**")
+            st.write("**Bảng kiểm quan sát hành vi có cấu trúc[cite: 1]:**")
             q1 = st.checkbox("Có phản ứng quá mức với kích thích giác quan (âm thanh chuông, ánh sáng, tiếng ồn)")
             q2 = st.checkbox("Gặp khó khăn lớn khi thay đổi lịch trình hoặc thứ tự hoạt động thường lệ")
             q3 = st.checkbox("Ít tương tác mắt, hạn chế đáp lại khi người khác gọi tên hoặc bắt chuyện")
@@ -354,20 +376,24 @@ elif step == "Bước 1: Tiếp nhận & Nhận diện nguy cơ":
                 c.execute("""INSERT INTO screenings (student_id, reporter_username, reporter_role, context, indicators_count, concern_note, risk_level, created_at)
                              VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", (real_sid, current_username, current_role, context, score, note, risk, str(date.today())))
                 conn.commit()
-                st.success(f"Đã ghi nhận! Kết quả sàng lọc: **{risk}** (Số chỉ báo: {score}/4). Đã kích hoạt chu trình họp nhóm.")
+                st.success(f"Đã ghi nhận! Kết quả sàng lọc: **{risk}** (Số chỉ báo: {score}/4). Đã kích hoạt chu trình họp nhóm[cite: 1].")
                 st.rerun()
 
     with col2:
-        st.subheader("Lịch Sử Báo Cáo Lo Ngại Đã Ghi Nhận")
+        st.subheader("Thống Kê Sàng Lọc Theo Bối Cảnh Quan Sát")
         scrs = pd.read_sql("SELECT id, student_id, reporter_role, context, indicators_count, risk_level, created_at FROM screenings ORDER BY id DESC", conn)
+        if not scrs.empty:
+            fig_ctx = px.pie(scrs, names='context', title='Tỷ lệ phản ánh theo môi trường học đường', hole=0.4)
+            fig_ctx.update_layout(height=250, margin=dict(l=10, r=10, t=30, b=10))
+            st.plotly_chart(fig_ctx, use_container_width=True)
         st.dataframe(scrs, use_container_width=True)
 
 # ==========================================
 # BƯỚC 2: HỌP NHÓM & ĐÁNH GIÁ NHU CẦU
 # ==========================================
 elif step == "Bước 2: Họp nhóm & Đánh giá nhu cầu":
-    st.header("Bước 2: Đánh giá nhu cầu giáo dục đa nguồn & Họp nhóm hỗ trợ")
-    st.info("Đánh giá tích hợp: Đặt dữ liệu từ Nhà trường, Gia đình và Cơ sở y tế/chuyên môn cạnh nhau để tìm ra rào cản và thế mạnh.")
+    st.header("Bước 2: Đánh giá nhu cầu giáo dục đa nguồn & Họp nhóm hỗ trợ[cite: 1]")
+    st.info("Đánh giá tích hợp: Đặt dữ liệu từ Nhà trường, Gia đình và Cơ sở y tế/chuyên môn cạnh nhau để tìm ra rào cản và thế mạnh[cite: 1].")
     
     students_df = pd.read_sql("SELECT * FROM students", conn)
     chosen_id = st.selectbox("Chọn học sinh cần xem xét hồ sơ đánh giá:", students_df['student_id'].tolist())
@@ -375,17 +401,28 @@ elif step == "Bước 2: Họp nhóm & Đánh giá nhu cầu":
     
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader("Hồ sơ năng lực học tập")
-        st.markdown(f"- **Mã HS:** {student_info['student_id']} ({student_info['alias_name']})")
-        st.markdown(f"- **Khối lớp:** {student_info['grade']}")
-        st.markdown(f"- **Thế mạnh & Sở thích:** :green[{student_info['strengths']}]")
-        st.markdown(f"- **Rào cản/Khó khăn:** :red[{student_info['challenges']}]")
-        st.markdown(f"- **Điều chỉnh lớp học:** {student_info['accommodations']}")
+        # Thẻ hồ sơ thiết kế giao diện trực quan
+        st.markdown(f"""
+        <div style="background-color:#F8FAFC; border: 1px solid #CBD5E1; padding:15px; border-radius:10px; margin-bottom:15px;">
+            <h4 style="color:#0F172A; margin-top:0;">📋 Hồ Sơ Đánh Giá: {student_info['alias_name']} ({student_info['student_id']})</h4>
+            <span style="background-color:#DBEAFE; color:#1E40AF; padding:3px 8px; border-radius:12px; font-size:12px; font-weight:bold;">{student_info['grade']}</span>
+            <hr style="margin:10px 0;">
+            <p><b>🌟 Thế mạnh & Sở thích:</b> <br><span style="color:#166534;">{student_info['strengths']}</span></p>
+            <p><b>⚠️ Rào cản học tập & Giác quan:</b> <br><span style="color:#991B1B;">{student_info['challenges']}</span></p>
+            <p><b>🛠 Điều chỉnh môi trường lớp học:</b> <br>{student_info['accommodations']}</p>
+        </div>
+        """, unsafe_allow_html=True)
     
     with c2:
-        st.subheader("Lịch sử các báo cáo lo ngại (Đa nguồn)")
+        st.subheader("Dữ Liệu Lo Ngại Thu Thập Đa Nguồn[cite: 1]")
         scr_history = pd.read_sql(f"SELECT reporter_role, context, indicators_count, risk_level, concern_note, created_at FROM screenings WHERE student_id='{chosen_id}'", conn)
         if not scr_history.empty:
+            # Biểu đồ cột thể hiện mức độ chỉ báo theo từng nguồn báo cáo
+            fig_bar = px.bar(scr_history, x='reporter_role', y='indicators_count', color='risk_level',
+                             labels={'reporter_role': 'Lực lượng báo cáo', 'indicators_count': 'Số lượng chỉ báo (0-4)'},
+                             title="Mức độ chỉ báo lo ngại theo đối tượng phản ánh")
+            fig_bar.update_layout(height=260, margin=dict(l=10, r=10, t=30, b=10))
+            st.plotly_chart(fig_bar, use_container_width=True)
             st.dataframe(scr_history, use_container_width=True)
         else:
             st.caption("Chưa có ghi nhận sàng lọc trước đó.")
@@ -394,21 +431,37 @@ elif step == "Bước 2: Họp nhóm & Đánh giá nhu cầu":
 # BƯỚC 3: LẬP KẾ HOẠCH HỖ TRỢ CÁ NHÂN (IEP)
 # ==========================================
 elif step == "Bước 3: Lập kế hoạch cá nhân (IEP)":
-    st.header("Bước 3: Hồ sơ Hỗ trợ Giáo dục Cá nhân hóa (Digital IEP)")
-    st.write("Xây dựng mục tiêu SMART, phân định rõ trách nhiệm của từng vị trí việc làm.")
+    st.header("Bước 3: Hồ sơ Hỗ trợ Giáo dục Cá nhân hóa (Digital IEP)[cite: 1]")
+    st.write("Xây dựng mục tiêu SMART, phân định rõ trách nhiệm của từng vị trí việc làm[cite: 1].")
     
     iep_df = pd.read_sql("""SELECT iep.plan_id, iep.student_id, s.alias_name, s.grade, iep.target_skill, 
                                    iep.strategy, s.accommodations, iep.lead_role, iep.approved_by, iep.status 
                             FROM iep_plans iep JOIN students s ON iep.student_id = s.student_id""", conn)
+    
+    # Thống kê trạng thái kế hoạch
+    c_st1, c_st2 = st.columns([1, 2])
+    with c_st1:
+        status_cnt = iep_df['status'].value_counts().reset_index()
+        status_cnt.columns = ['Trạng thái', 'Số lượng']
+        fig_st = px.pie(status_cnt, names='Trạng thái', values='Số lượng', hole=0.4, title="Trạng thái phê duyệt IEP")
+        fig_st.update_layout(height=220, margin=dict(l=5, r=5, t=30, b=5))
+        st.plotly_chart(fig_st, use_container_width=True)
+    with c_st2:
+        role_cnt = iep_df['lead_role'].value_counts().reset_index()
+        role_cnt.columns = ['Vị trí chịu trách nhiệm', 'Số lượng mục tiêu']
+        fig_role = px.bar(role_cnt, x='Số lượng mục tiêu', y='Vị trí chịu trách nhiệm', orientation='h', title="Phân bổ trách nhiệm theo vị trí việc làm[cite: 1]")
+        fig_role.update_layout(height=220, margin=dict(l=5, r=5, t=30, b=5))
+        st.plotly_chart(fig_role, use_container_width=True)
+
     st.dataframe(iep_df, use_container_width=True)
     
     with st.expander("➕ Thiết lập hoặc điều chỉnh mục tiêu IEP mới"):
         with st.form("new_iep"):
             f_sid = st.selectbox("Chọn học sinh:", pd.read_sql("SELECT student_id FROM students", conn)['student_id'].tolist())
             f_plan_id = f"IEP-{f_sid[-2:]}-M{date.today().strftime('%m')}"
-            f_skill = st.text_input("Mục tiêu đo lường được (SMART):", placeholder="Ví dụ: Tự hoàn thành bài tập 15 phút với thẻ visual timer")
-            f_strategy = st.text_area("Chiến lược hướng dẫn & Gợi ý hỗ trợ:")
-            f_role = st.selectbox("Người phụ trách chính:", ["Giáo viên chủ nhiệm / Bộ môn", "Nhân viên Hỗ trợ GD Người khuyết tật", "Cán bộ Tư vấn học sinh (Điều phối)", "Phụ huynh học sinh"])
+            f_skill = st.text_input("Mục tiêu đo lường được (SMART)[cite: 1]:", placeholder="Ví dụ: Tự hoàn thành bài tập 15 phút với thẻ visual timer")
+            f_strategy = st.text_area("Chiến lược hướng dẫn & Gợi ý hỗ trợ[cite: 1]:")
+            f_role = st.selectbox("Người phụ trách chính[cite: 1]:", ["Giáo viên chủ nhiệm / Bộ môn", "Nhân viên Hỗ trợ GD Người khuyết tật", "Cán bộ Tư vấn học sinh (Điều phối)", "Phụ huynh học sinh"])
             
             can_appr = ROLE_PERMISSIONS[current_role]["can_approve"]
             f_appr = current_username if can_appr else "Chờ Cán bộ TVHS duyệt"
@@ -426,8 +479,38 @@ elif step == "Bước 3: Lập kế hoạch cá nhân (IEP)":
 # BƯỚC 4 & 5: CAN THIỆP & THEO DÕI TIẾN TRIỂN
 # ==========================================
 elif step == "Bước 4 & 5: Can thiệp & Theo dõi tiến triển":
-    st.header("Bước 4 & 5: Can thiệp trong lớp học & Phân tích tiến trình thời gian thực")
+    st.header("Bước 4 & 5: Can thiệp trong lớp học & Phân tích tiến trình thời gian thực[cite: 1]")
     
+    # Mô phỏng công cụ trực quan hóa hỗ trợ can thiệp tại lớp (Visual Support Toolbox)
+    with st.expander("🧩 Bảng Công Cụ Hỗ Trợ Can Thiệp Trực Quan Tại Lớp Học (Visual Schedule Simulator)", expanded=False):
+        st.write("**Mô phỏng Lịch trình trực quan (Visual Schedule) & Thẻ hành vi cho học sinh[cite: 1]:**")
+        v_col1, v_col2, v_col3, v_col4 = st.columns(4)
+        v_col1.markdown("""
+        <div style="text-align:center; padding:15px; border:2px dashed #0284C7; border-radius:8px; background:#F0F9FF;">
+            <div style="font-size:30px;">📚</div>
+            <b>1. Giờ đọc bài</b><br><small>15 phút - Bài tập cá nhân</small>
+        </div>
+        """, unsafe_allow_html=True)
+        v_col2.markdown("""
+        <div style="text-align:center; padding:15px; border:2px dashed #059669; border-radius:8px; background:#ECFDF5;">
+            <div style="font-size:30px;">🧩</div>
+            <b>2. Hoạt động nhóm</b><br><small>10 phút - Ghép tranh với bạn</small>
+        </div>
+        """, unsafe_allow_html=True)
+        v_col3.markdown("""
+        <div style="text-align:center; padding:15px; border:2px dashed #D97706; border-radius:8px; background:#FFFBEB;">
+            <div style="font-size:30px;">⏳</div>
+            <b>3. Chuẩn bị đổi tiết</b><br><small>Báo trước 5 phút (Timer)</small>
+        </div>
+        """, unsafe_allow_html=True)
+        v_col4.markdown("""
+        <div style="text-align:center; padding:15px; border:2px dashed #7C3AED; border-radius:8px; background:#F5F3FF;">
+            <div style="font-size:30px;">⭐️</div>
+            <b>4. Khen thưởng</b><br><small>Tích lũy 3 ngôi sao hoàn thành</small>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.write("")
     col_input, col_view = st.columns([1, 2])
     with col_input:
         st.subheader("Nhật ký can thiệp định kỳ")
@@ -457,13 +540,15 @@ elif step == "Bước 4 & 5: Can thiệp & Theo dõi tiến triển":
                 st.rerun()
                 
     with col_view:
-        st.subheader("Đồ thị tiến bộ của học sinh")
+        st.subheader("Đồ thị phân tích tiến bộ theo thời gian[cite: 1]")
         df_chart = pd.read_sql(f"SELECT record_date, target_skill, score, notes, logged_by FROM progress_logs WHERE student_id='{selected_student}' ORDER BY record_date ASC", conn)
         if not df_chart.empty:
             fig = px.line(df_chart, x="record_date", y="score", color="target_skill", markers=True, 
-                          title=f"Xu hướng mức độ tự chủ của {selected_student}",
+                          title=f"Đồ thị theo dõi mức độ tự chủ của {selected_student}",
                           labels={"score": "Điểm tự chủ (1-5)", "record_date": "Thời gian", "target_skill": "Mục tiêu kỹ năng"})
+            fig.update_traces(line=dict(width=3))
             fig.update_yaxes(range=[0.5, 5.5], tickvals=[1, 2, 3, 4, 5])
+            fig.add_hline(y=4.0, line_dash="dash", line_color="green", annotation_text="Ngưỡng độc lập tốt (>=4)")
             st.plotly_chart(fig, use_container_width=True)
             st.dataframe(df_chart, use_container_width=True)
         else:
@@ -473,9 +558,15 @@ elif step == "Bước 4 & 5: Can thiệp & Theo dõi tiến triển":
 # BƯỚC 6: RÀ SOÁT & CHUYỂN TIẾP
 # ==========================================
 elif step == "Bước 6: Rà soát & Chuyển tiếp":
-    st.header("Bước 6: Rà soát định kỳ & Chuyển tiếp cấp học / năm học")
-    st.write("Đảm bảo tính liên tục, không bị đứt đoạn hỗ trợ khi học sinh lên lớp mới hoặc chuyển trường.")
+    st.header("Bước 6: Rà soát định kỳ & Chuyển tiếp cấp học / năm học[cite: 1]")
+    st.write("Đảm bảo tính liên tục, không bị đứt đoạn hỗ trợ khi học sinh lên lớp mới hoặc chuyển trường[cite: 1].")
     
+    # Trực quan hóa quy trình chuyển tiếp
+    t_c1, t_c2, t_c3 = st.columns(3)
+    t_c1.info("📌 **Giai đoạn 1:** Tổng kết đánh giá năng lực & Rào cản giác quan cuối năm học.")
+    t_c2.warning("📌 **Giai đoạn 2:** Họp bàn giao giữa giáo viên cũ và giáo viên tiếp nhận năm tới.")
+    t_c3.success("📌 **Giai đoạn 3:** Chuyển giao hồ sơ số IEP và cấu trúc hỗ trợ môi trường lớp học.")
+
     trans_df = pd.read_sql("""SELECT t.id, t.student_id, s.alias_name, s.grade, t.review_date, t.summary, t.transition_plan, u.full_name as reviewer 
                               FROM transition_reviews t 
                               JOIN students s ON t.student_id = s.student_id
@@ -485,7 +576,7 @@ elif step == "Bước 6: Rà soát & Chuyển tiếp":
     with st.form("trans_form"):
         t_sid = st.selectbox("Chọn học sinh chuẩn bị chuyển tiếp:", pd.read_sql("SELECT student_id FROM students", conn)['student_id'].tolist())
         t_sum = st.text_area("Tóm tắt năng lực đạt được sau giai đoạn can thiệp:")
-        t_plan = st.text_area("Khuyến nghị và điều chỉnh môi trường cần bàn giao cho giáo viên năm học sau:")
+        t_plan = st.text_area("Khuyến nghị và điều chỉnh môi trường cần bàn giao cho giáo viên năm học sau[cite: 1]:")
         
         if st.form_submit_button("Lưu hồ sơ chuyển tiếp"):
             c = conn.cursor()
@@ -505,11 +596,28 @@ elif step == "📊 Tổng hợp Dữ liệu & Mô phỏng":
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Tổng số người dùng", len(pd.read_sql("SELECT username FROM users", conn)))
     c2.metric("Tổng số ca học sinh", len(pd.read_sql("SELECT student_id FROM students", conn)))
-    c3.metric("Mục tiêu IEP đang chạy", len(pd.read_sql("SELECT plan_id FROM iep_plans", conn)))
+    c3.metric("Kế hoạch IEP đang chạy", len(pd.read_sql("SELECT plan_id FROM iep_plans", conn)))
     c4.metric("Số bản ghi tiến triển", len(pd.read_sql("SELECT id FROM progress_logs", conn)))
     
     st.divider()
-    st.subheader("1. Toàn bộ Ca Học Sinh Mẫu Đang Quản Lý (Benchmark Profiles)")
+    
+    # Biểu đồ phân tích tổng thể đa chiều
+    st.subheader("Phân Tích Dữ Liệu Tổng Thể Hệ Thống")
+    col_chart_a, col_chart_b = st.columns(2)
+    
+    with col_chart_a:
+        scr_summary = pd.read_sql("SELECT risk_level, COUNT(*) as total FROM screenings GROUP BY risk_level", conn)
+        fig_risk = px.pie(scr_summary, values='total', names='risk_level', title='Phân bố mức độ nguy cơ phát hiện sớm', color_discrete_sequence=px.colors.sequential.RdBu)
+        fig_risk.update_layout(height=260, margin=dict(l=10, r=10, t=30, b=10))
+        st.plotly_chart(fig_risk, use_container_width=True)
+        
+    with col_chart_b:
+        avg_score = pd.read_sql("SELECT student_id, AVG(score) as avg_score FROM progress_logs GROUP BY student_id", conn)
+        fig_avg = px.bar(avg_score, x='student_id', y='avg_score', text_auto='.2f', title='Điểm tự chủ trung bình theo từng học sinh (Thang 1-5)', color='avg_score', color_continuous_scale='Blues')
+        fig_avg.update_layout(height=260, margin=dict(l=10, r=10, t=30, b=10))
+        st.plotly_chart(fig_avg, use_container_width=True)
+
+    st.subheader("1. Toàn bộ Ca Học Sinh Mẫu Đang Quản Lý (Benchmark Profiles)[cite: 2]")
     st.dataframe(pd.read_sql("SELECT * FROM students", conn), use_container_width=True)
     
     st.subheader("2. Danh sách Tài khoản & Phân quyền Hệ thống (RBAC)")
