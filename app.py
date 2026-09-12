@@ -121,8 +121,14 @@ init_and_seed_db()
 # ==========================================
 st.set_page_config(page_title="Nền tảng Hỗ trợ Hòa nhập Học sinh RLPTK", layout="wide", page_icon="🏫")
 
+# Header & Ghi nhận quyền tác giả
 st.sidebar.title("GIÁO DỤC HÒA NHẬP")
-st.sidebar.caption("Mô hình tích hợp có ứng dụng công nghệ số (PGS.TS. Nguyễn Văn Tường)")
+st.sidebar.markdown("""
+**Hệ thống Số Hỗ trợ RLPTK Học đường**
+* **Khung lý thuyết:** PGS.TS. Nguyễn Văn Tường (USSH, VNU-HCM) & TS. Lê Thị Thanh Huyền (HCMUE)
+* **Thiết kế & Triển khai Kỹ thuật:** Nhóm nghiên cứu ThS. Võ Thị Kim Anh (Khoa CNTT, Trường ĐH Tôn Đức Thắng - TDTU; Nghiên cứu sinh PhD tại FEI/VSB)
+""")
+st.sidebar.caption("Phiên bản thử nghiệm (Proof of Concept - PoC)")
 
 # Lựa chọn vai trò theo Thông tư 11 & 21
 user_role = st.sidebar.selectbox(
