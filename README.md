@@ -1,8 +1,10 @@
 # Nền Tảng Số Tích Hợp Hỗ Trợ Giáo Dục Hòa Nhập Học Sinh Rối Loạn Phổ Tự Kỷ (Digital Inclusion Platform for ASD)
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://autism-support-poc-brorrc4ear763c2wwdsqid.streamlit.app/)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+**Trải nghiệm ứng dụng trực tuyến:** [https://autism-support-poc-brorrc4ear763c2wwdsqid.streamlit.app/](https://autism-support-poc-brorrc4ear763c2wwdsqid.streamlit.app/)
 
 Dự án nghiên cứu thử nghiệm (Proof of Concept - PoC) xây dựng hệ thống phần mềm hỗ trợ quy trình phát hiện sớm, quản lý hồ sơ giáo dục cá nhân và theo dõi can thiệp học sinh rối loạn phổ tự kỷ (RLPTK) trong môi trường học đường hòa nhập.
 
@@ -51,7 +53,13 @@ Hệ thống hiện thực hóa chuỗi can thiệp khép kín:
 
 ## 🚀 Hướng Dẫn Cài Đặt & Chạy Thử Nghiệm
 
-### 1. Chạy trên máy cục bộ (Localhost)
+### 1. Truy cập trực tiếp (Trực tuyến)
+Người dùng và hội đồng chuyên gia có thể truy cập ngay phiên bản đang chạy thử nghiệm tại:  
+👉 **[https://autism-support-poc-brorrc4ear763c2wwdsqid.streamlit.app/](https://autism-support-poc-brorrc4ear763c2wwdsqid.streamlit.app/)**
+
+---
+
+### 2. Chạy trên máy cục bộ (Localhost)
 
 ```bash
 # Bước 1: Clone repository
