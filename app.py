@@ -240,64 +240,121 @@ PGS.TS. Nguyễn Văn Tường & TS. Lê Thị Thanh Huyền
 """, unsafe_allow_html=True)
 
 # ==========================================
-# SƠ ĐỒ MÔ PHỎNG HÌNH ẢNH TRỰC QUAN
+# SƠ ĐỒ MÔ PHỎNG HÌNH ẢNH TRỰC QUAN (REDESIGNED)
 # ==========================================
 if step == "Sơ đồ Mô phỏng & Tổng quan":
-    st.header("Sơ Đồ Mô Phỏng Chuỗi 6 Bước Liên Tục & Trách Nhiệm Phối Hợp")
-    st.write("Mô hình tích hợp số hóa kết nối chặt chẽ **Dữ liệu – Con người – Trách nhiệm** trong môi trường học đường:")
+    st.markdown("""
+        <div style="background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%); padding: 22px 28px; border-radius: 12px; color: white; margin-bottom: 25px;">
+            <h2 style="margin:0; color:white; font-size: 26px;">Hệ Thống Số Hỗ Trợ Học Sinh Rối Loạn Phổ Tự Kỷ (RLPTK) Hòa Nhập</h2>
+            <p style="margin: 8px 0 0 0; opacity: 0.9; font-size: 14px;">
+                Số hóa mô hình tích hợp: <b>Dữ liệu • Con người • Trách nhiệm</b> — Theo Thông tư 11/2024 & Thông tư 21/2023 của Bộ GD&ĐT
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
     
-    col_steps = st.columns(6)
-    step_metadata = [
-        ("1. Tiếp nhận", "Giáo viên / Phụ huynh", "Ghi nhận lo ngại có cấu trúc", "#E0F2FE", "#0369A1"),
-        ("2. Đánh giá", "Cán bộ TVHS & Nhóm", "Họp nhóm, đánh giá đa nguồn", "#FEF3C7", "#B45309"),
-        ("3. Lập IEP", "Nhân viên GDHN & GV", "Mục tiêu SMART & điều chỉnh", "#DCFCE7", "#15803D"),
-        ("4. Can thiệp", "GV bộ môn / GDHN", "Visual support, lịch trình", "#F3E8FF", "#7E22CE"),
-        ("5. Theo dõi", "Đa lực lượng", "Chấm điểm độc lập định kỳ", "#FCE7F3", "#BE185D"),
-        ("6. Chuyển tiếp", "Cán bộ TVHS & BGH", "Bàn giao năm học/cấp học", "#E2E8F0", "#334155")
-    ]
+    # 1. Thẻ chỉ số tổng quan nhanh
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    total_stu = len(pd.read_sql("SELECT student_id FROM students", conn))
+    total_scr = len(pd.read_sql("SELECT id FROM screenings", conn))
+    total_iep = len(pd.read_sql("SELECT plan_id FROM iep_plans", conn))
+    total_logs = len(pd.read_sql("SELECT id FROM progress_logs", conn))
     
-    for i, (title, owner, note, bg, fg) in enumerate(step_metadata):
-        with col_steps[i]:
-            st.markdown(f"""
-            <div style="background-color:{bg}; border-left: 4px solid {fg}; padding:10px; border-radius:6px; min-height:140px;">
-                <b style="color:{fg}; font-size:14px;">{title}</b><br>
-                <small style="color:#1E293B;"><b>Phụ trách:</b> {owner}</small><br>
-                <p style="font-size:11px; color:#475569; margin-top:5px;">{note}</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
+    kpi1.metric("Học sinh trong hệ thống", f"{total_stu} em")
+    kpi2.metric("Phiếu ghi nhận nguy cơ", f"{total_scr} phiếu")
+    kpi3.metric("Kế hoạch IEP đang chạy", f"{total_iep} mục tiêu")
+    kpi4.metric("Dữ liệu theo dõi tích lũy", f"{total_logs} bản ghi")
+    
     st.write("")
     
-    # Trực quan hóa Sankey Diagram minh họa luồng dữ liệu
-    st.subheader("Trực Quan Hóa Luồng Dữ Liệu & Phối Hợp Đa Lực Lượng")
-    fig_flow = go.Figure(data=[go.Sankey(
-        node=dict(
-            pad=15, thickness=20, line=dict(color="black", width=0.5),
-            label=["Giáo viên / PH (Nhận diện)", "Cán bộ TVHS (Điều phối)", "Nhân viên GDHN (Can thiệp)",
-                   "Hồ sơ sàng lọc", "Kế hoạch IEP", "Lớp học hòa nhập", "Chuyển tiếp cấp học"],
-            color=["#38BDF8", "#FBBF24", "#34D399", "#94A3B8", "#A78BFA", "#F472B6", "#4ADE80"]
-        ),
-        link=dict(
-            source=[0, 1, 1, 2, 4, 5],
-            target=[3, 1, 4, 4, 5, 6],
-            value=[4, 3, 3, 3, 5, 2]
-        )
-    )])
-    fig_flow.update_layout(height=280, margin=dict(l=10, r=10, t=20, b=10))
-    st.plotly_chart(fig_flow, use_container_width=True)
-
-    st.subheader("Ma Trận Trách Nhiệm Nghiệp Vụ (RACI Matrix)")
-    raci_data = pd.DataFrame([
-        {"Bước nghiệp vụ": "Bước 1: Sàng lọc & Tiếp nhận lo ngại", "GV Chủ nhiệm": "Chủ trì (R)", "Tư vấn HS": "Phối hợp (C)", "NV Hỗ trợ GDHN": "Tham vấn (I)", "Phụ huynh": "Đồng thuận (A)"},
-        {"Bước nghiệp vụ": "Bước 2: Họp nhóm & Đánh giá nhu cầu", "GV Chủ nhiệm": "Tham gia (C)", "Tư vấn HS": "Chủ trì (R)", "NV Hỗ trợ GDHN": "Phối hợp (C)", "Phụ huynh": "Tham gia (C)"},
-        {"Bước nghiệp vụ": "Bước 3: Lập kế hoạch cá nhân (IEP)", "GV Chủ nhiệm": "Phối hợp (C)", "Tư vấn HS": "Phê duyệt (A)", "NV Hỗ trợ GDHN": "Xây dựng (R)", "Phụ huynh": "Ký duyệt (A)"},
-        {"Bước nghiệp vụ": "Bước 4: Can thiệp ngay tại lớp", "GV Chủ nhiệm": "Thực hiện (R)", "Tư vấn HS": "Giám sát (A)", "NV Hỗ trợ GDHN": "Trợ giảng (R)", "Phụ huynh": "Hỗ trợ nhà (C)"},
-        {"Bước nghiệp vụ": "Bước 5: Ghi nhận & Theo dõi tiến triển", "GV Chủ nhiệm": "Chấm điểm (R)", "Tư vấn HS": "Theo dõi (A)", "NV Hỗ trợ GDHN": "Ghi chép (R)", "Phụ huynh": "Theo dõi (I)"},
-        {"Bước nghiệp vụ": "Bước 6: Rà soát & Chuyển tiếp cấp học", "GV Chủ nhiệm": "Bàn giao (C)", "Tư vấn HS": "Chủ trì (R)", "NV Hỗ trợ GDHN": "Tổng kết (C)", "Phụ huynh": "Đồng hành (C)"}
-    ])
-    st.dataframe(raci_data, use_container_width=True, hide_index=True)
-    st.caption("*(R: Responsible - Thực hiện | A: Accountable - Phê duyệt | C: Consulted - Tham vấn | I: Informed - Nhận thông tin)*")
-
+    # 2. Pipeline quy trình 6 bước dạng Chevron hiện đại
+    st.subheader("Chuỗi Quy Trình 6 Bước Khép Kín Trong Học Đường")
+    
+    steps_html = """
+    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 25px;">
+        <div style="flex: 1; min-width: 150px; background: #EFF6FF; border: 1px solid #BFDBFE; border-top: 4px solid #2563EB; border-radius: 8px; padding: 12px;">
+            <div style="font-size: 11px; font-weight: 700; color: #1D4ED8; text-transform: uppercase;">Bước 1</div>
+            <div style="font-size: 14px; font-weight: 700; color: #1E293B; margin: 4px 0;">Tiếp nhận & Nhận diện</div>
+            <div style="font-size: 11px; color: #64748B; line-height: 1.4;">Bảng kiểm quan sát hành vi có cấu trúc; không chẩn đoán thay bác sĩ.</div>
+            <div style="margin-top: 8px; font-size: 10px; background: #DBEAFE; color: #1E40AF; padding: 2px 6px; border-radius: 4px; display: inline-block;">GV & Phụ huynh</div>
+        </div>
+        <div style="flex: 1; min-width: 150px; background: #FFFBEB; border: 1px solid #FDE68A; border-top: 4px solid #D97706; border-radius: 8px; padding: 12px;">
+            <div style="font-size: 11px; font-weight: 700; color: #B45309; text-transform: uppercase;">Bước 2</div>
+            <div style="font-size: 14px; font-weight: 700; color: #1E293B; margin: 4px 0;">Đánh giá Đa nguồn</div>
+            <div style="font-size: 11px; color: #64748B; line-height: 1.4;">Họp nhóm hỗ trợ; đối chiếu dữ liệu Trường - Nhà - Bệnh viện.</div>
+            <div style="margin-top: 8px; font-size: 10px; background: #FEF3C7; color: #92400E; padding: 2px 6px; border-radius: 4px; display: inline-block;">Cán bộ Tư vấn HS</div>
+        </div>
+        <div style="flex: 1; min-width: 150px; background: #ECFDF5; border: 1px solid #A7F3D0; border-top: 4px solid #059669; border-radius: 8px; padding: 12px;">
+            <div style="font-size: 11px; font-weight: 700; color: #047857; text-transform: uppercase;">Bước 3</div>
+            <div style="font-size: 14px; font-weight: 700; color: #1E293B; margin: 4px 0;">Kế hoạch IEP Số</div>
+            <div style="font-size: 11px; color: #64748B; line-height: 1.4;">Mục tiêu SMART đo lường được; phân vai trách nhiệm rõ ràng.</div>
+            <div style="margin-top: 8px; font-size: 10px; background: #D1FAE5; color: #065F46; padding: 2px 6px; border-radius: 4px; display: inline-block;">NV Hỗ trợ GDHN</div>
+        </div>
+        <div style="flex: 1; min-width: 150px; background: #FAF5FF; border: 1px solid #E9D5FF; border-top: 4px solid #7C3AED; border-radius: 8px; padding: 12px;">
+            <div style="font-size: 11px; font-weight: 700; color: #6D28D9; text-transform: uppercase;">Bước 4</div>
+            <div style="font-size: 14px; font-weight: 700; color: #1E293B; margin: 4px 0;">Can thiệp Tại lớp</div>
+            <div style="font-size: 11px; color: #64748B; line-height: 1.4;">Lịch trình visual, timer, công cụ AAC; điều chỉnh môi trường học.</div>
+            <div style="margin-top: 8px; font-size: 10px; background: #EDE9FE; color: #5B21B6; padding: 2px 6px; border-radius: 4px; display: inline-block;">GV & Trợ giảng</div>
+        </div>
+        <div style="flex: 1; min-width: 150px; background: #FDF2F8; border: 1px solid #FBCFE8; border-top: 4px solid #DB2777; border-radius: 8px; padding: 12px;">
+            <div style="font-size: 11px; font-weight: 700; color: #BE185D; text-transform: uppercase;">Bước 5</div>
+            <div style="font-size: 14px; font-weight: 700; color: #1E293B; margin: 4px 0;">Theo dõi Tiến trình</div>
+            <div style="font-size: 11px; color: #64748B; line-height: 1.4;">Đo mức tự chủ thang 1-5; biểu đồ chuỗi thời gian tự động.</div>
+            <div style="margin-top: 8px; font-size: 10px; background: #FCE7F3; color: #9D174D; padding: 2px 6px; border-radius: 4px; display: inline-block;">Toàn bộ nhóm</div>
+        </div>
+        <div style="flex: 1; min-width: 150px; background: #F8FAFC; border: 1px solid #CBD5E1; border-top: 4px solid #475569; border-radius: 8px; padding: 12px;">
+            <div style="font-size: 11px; font-weight: 700; color: #334155; text-transform: uppercase;">Bước 6</div>
+            <div style="font-size: 14px; font-weight: 700; color: #1E293B; margin: 4px 0;">Rà soát & Chuyển tiếp</div>
+            <div style="font-size: 11px; color: #64748B; line-height: 1.4;">Bàn giao hồ sơ giữa các năm học và khi học sinh chuyển cấp.</div>
+            <div style="margin-top: 8px; font-size: 10px; background: #E2E8F0; color: #1E293B; padding: 2px 6px; border-radius: 4px; display: inline-block;">Cán bộ TVHS & BGH</div>
+        </div>
+    </div>
+    """
+    st.markdown(steps_html, unsafe_allow_html=True)
+    
+    # 3. Hai cột: Tam giác tích hợp (Slide 1) & Ma trận trách nhiệm RACI
+    col_triangle, col_raci = st.columns([1, 1])
+    
+    with col_triangle:
+        st.subheader("Mô Hình Tích Hợp 3 Trụ Cột")
+        st.markdown("""
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px;">
+            <div style="text-align: center; margin-bottom: 12px;">
+                <div style="display: inline-block; background: #0284C7; color: white; padding: 10px 20px; border-radius: 20px; font-weight: 700; font-size: 15px;">
+                    🎯 PHÁT HIỆN SỚM
+                </div>
+            </div>
+            <div style="display: flex; justify-content: space-around; align-items: center; margin: 15px 0;">
+                <div style="background: #0D9488; color: white; padding: 12px 16px; border-radius: 20px; font-weight: 700; font-size: 14px; text-align: center; width: 42%;">
+                    📋 ĐÁNH GIÁ<br><small style="font-weight: normal; font-size: 11px;">Nhu cầu giáo dục</small>
+                </div>
+                <div style="background: #E0E7FF; color: #3730A3; font-weight: bold; padding: 8px 14px; border-radius: 50%; font-size: 13px; text-align: center;">
+                    HỌC<br>SINH
+                </div>
+                <div style="background: #7C3AED; color: white; padding: 12px 16px; border-radius: 20px; font-weight: 700; font-size: 14px; text-align: center; width: 42%;">
+                    🤝 CAN THIỆP<br><small style="font-weight: normal; font-size: 11px;">Ngay trong lớp học</small>
+                </div>
+            </div>
+            <hr style="margin: 12px 0; border: none; border-top: 1px dashed #CBD5E1;">
+            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #475569; text-align: center;">
+                <span style="flex:1;">🔗 <b>Dữ liệu đa nguồn</b></span>
+                <span style="flex:1;">👥 <b>Phối hợp lực lượng</b></span>
+                <span style="flex:1;">⚖️ <b>Rõ ràng trách nhiệm</b></span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    with col_raci:
+        st.subheader("Phân Quyền Vị Trí Việc Làm (RACI)")
+        raci_data = pd.DataFrame([
+            {"Bước nghiệp vụ": "1. Tiếp nhận lo ngại", "GV Chủ nhiệm": "Chủ trì (R)", "Tư vấn HS": "Phối hợp (C)", "Hỗ trợ GDHN": "Tham vấn (I)"},
+            {"Bước nghiệp vụ": "2. Đánh giá đa nguồn", "GV Chủ nhiệm": "Tham gia (C)", "Tư vấn HS": "Chủ trì (R)", "Hỗ trợ GDHN": "Phối hợp (C)"},
+            {"Bước nghiệp vụ": "3. Lập kế hoạch IEP", "GV Chủ nhiệm": "Phối hợp (C)", "Tư vấn HS": "Phê duyệt (A)", "Hỗ trợ GDHN": "Xây dựng (R)"},
+            {"Bước nghiệp vụ": "4. Can thiệp tại lớp", "GV Chủ nhiệm": "Thực hiện (R)", "Tư vấn HS": "Giám sát (A)", "Hỗ trợ GDHN": "Trợ giảng (R)"},
+            {"Bước nghiệp vụ": "5. Theo dõi tiến trình", "GV Chủ nhiệm": "Chấm điểm (R)", "Tư vấn HS": "Theo dõi (A)", "Hỗ trợ GDHN": "Ghi chép (R)"},
+            {"Bước nghiệp vụ": "6. Chuyển tiếp cấp học", "GV Chủ nhiệm": "Bàn giao (C)", "Tư vấn HS": "Chủ trì (R)", "Hỗ trợ GDHN": "Tổng kết (C)"}
+        ])
+        st.dataframe(raci_data, use_container_width=True, hide_index=True)
+        st.caption("*(R: Người làm chính | A: Người duyệt/chịu trách nhiệm | C: Tham vấn đóng góp | I: Nhận thông báo)*")
 # ==========================================
 # BƯỚC 0: NHẬP VÀ QUẢN LÝ HỒ SƠ HỌC SINH
 # ==========================================
@@ -348,8 +405,8 @@ elif step == "Bước 0: Quản lý & Nhập Hồ sơ Học sinh":
 # BƯỚC 1: TIẾP NHẬN & NHẬN DIỆN NGUY CƠ
 # ==========================================
 elif step == "Bước 1: Tiếp nhận & Nhận diện nguy cơ":
-    st.header("Bước 1: Tiếp nhận lo ngại & Nhận diện có cấu trúc[cite: 1]")
-    st.warning("⚠️ **Nguyên tắc đạo đức dữ liệu:** Bảng kiểm chỉ hỗ trợ nhận diện sơ bộ dấu hiệu cần đánh giá thêm. Hệ thống tuyệt đối **không đưa ra kết luận chẩn đoán** thay thế bác sĩ/chuyên gia lâm sàng[cite: 1].")
+    st.header("Bước 1: Tiếp nhận lo ngại & Nhận diện có cấu trúc")
+    st.warning("⚠️ **Nguyên tắc đạo đức dữ liệu:** Bảng kiểm chỉ hỗ trợ nhận diện sơ bộ dấu hiệu cần đánh giá thêm. Hệ thống tuyệt đối **không đưa ra kết luận chẩn đoán** thay thế bác sĩ/chuyên gia lâm sàng.")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -361,7 +418,7 @@ elif step == "Bước 1: Tiếp nhận & Nhận diện nguy cơ":
             context = st.selectbox("Bối cảnh quan sát chính:", ["Trong giờ học", "Giờ ra chơi", "Hoạt động nhóm", "Lúc chuyển tiết", "Tại gia đình"])
             
             st.write("---")
-            st.write("**Bảng kiểm quan sát hành vi có cấu trúc[cite: 1]:**")
+            st.write("**Bảng kiểm quan sát hành vi có cấu trúc:**")
             q1 = st.checkbox("Có phản ứng quá mức với kích thích giác quan (âm thanh chuông, ánh sáng, tiếng ồn)")
             q2 = st.checkbox("Gặp khó khăn lớn khi thay đổi lịch trình hoặc thứ tự hoạt động thường lệ")
             q3 = st.checkbox("Ít tương tác mắt, hạn chế đáp lại khi người khác gọi tên hoặc bắt chuyện")
@@ -376,7 +433,7 @@ elif step == "Bước 1: Tiếp nhận & Nhận diện nguy cơ":
                 c.execute("""INSERT INTO screenings (student_id, reporter_username, reporter_role, context, indicators_count, concern_note, risk_level, created_at)
                              VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", (real_sid, current_username, current_role, context, score, note, risk, str(date.today())))
                 conn.commit()
-                st.success(f"Đã ghi nhận! Kết quả sàng lọc: **{risk}** (Số chỉ báo: {score}/4). Đã kích hoạt chu trình họp nhóm[cite: 1].")
+                st.success(f"Đã ghi nhận! Kết quả sàng lọc: **{risk}** (Số chỉ báo: {score}/4). Đã kích hoạt chu trình họp nhóm.")
                 st.rerun()
 
     with col2:
@@ -392,8 +449,8 @@ elif step == "Bước 1: Tiếp nhận & Nhận diện nguy cơ":
 # BƯỚC 2: HỌP NHÓM & ĐÁNH GIÁ NHU CẦU
 # ==========================================
 elif step == "Bước 2: Họp nhóm & Đánh giá nhu cầu":
-    st.header("Bước 2: Đánh giá nhu cầu giáo dục đa nguồn & Họp nhóm hỗ trợ[cite: 1]")
-    st.info("Đánh giá tích hợp: Đặt dữ liệu từ Nhà trường, Gia đình và Cơ sở y tế/chuyên môn cạnh nhau để tìm ra rào cản và thế mạnh[cite: 1].")
+    st.header("Bước 2: Đánh giá nhu cầu giáo dục đa nguồn & Họp nhóm hỗ trợ")
+    st.info("Đánh giá tích hợp: Đặt dữ liệu từ Nhà trường, Gia đình và Cơ sở y tế/chuyên môn cạnh nhau để tìm ra rào cản và thế mạnh.")
     
     students_df = pd.read_sql("SELECT * FROM students", conn)
     chosen_id = st.selectbox("Chọn học sinh cần xem xét hồ sơ đánh giá:", students_df['student_id'].tolist())
@@ -414,7 +471,7 @@ elif step == "Bước 2: Họp nhóm & Đánh giá nhu cầu":
         """, unsafe_allow_html=True)
     
     with c2:
-        st.subheader("Dữ Liệu Lo Ngại Thu Thập Đa Nguồn[cite: 1]")
+        st.subheader("Dữ Liệu Lo Ngại Thu Thập Đa Nguồn")
         scr_history = pd.read_sql(f"SELECT reporter_role, context, indicators_count, risk_level, concern_note, created_at FROM screenings WHERE student_id='{chosen_id}'", conn)
         if not scr_history.empty:
             # Biểu đồ cột thể hiện mức độ chỉ báo theo từng nguồn báo cáo
@@ -431,8 +488,8 @@ elif step == "Bước 2: Họp nhóm & Đánh giá nhu cầu":
 # BƯỚC 3: LẬP KẾ HOẠCH HỖ TRỢ CÁ NHÂN (IEP)
 # ==========================================
 elif step == "Bước 3: Lập kế hoạch cá nhân (IEP)":
-    st.header("Bước 3: Hồ sơ Hỗ trợ Giáo dục Cá nhân hóa (Digital IEP)[cite: 1]")
-    st.write("Xây dựng mục tiêu SMART, phân định rõ trách nhiệm của từng vị trí việc làm[cite: 1].")
+    st.header("Bước 3: Hồ sơ Hỗ trợ Giáo dục Cá nhân hóa (Digital IEP)")
+    st.write("Xây dựng mục tiêu SMART, phân định rõ trách nhiệm của từng vị trí việc làm.")
     
     iep_df = pd.read_sql("""SELECT iep.plan_id, iep.student_id, s.alias_name, s.grade, iep.target_skill, 
                                    iep.strategy, s.accommodations, iep.lead_role, iep.approved_by, iep.status 
@@ -449,7 +506,7 @@ elif step == "Bước 3: Lập kế hoạch cá nhân (IEP)":
     with c_st2:
         role_cnt = iep_df['lead_role'].value_counts().reset_index()
         role_cnt.columns = ['Vị trí chịu trách nhiệm', 'Số lượng mục tiêu']
-        fig_role = px.bar(role_cnt, x='Số lượng mục tiêu', y='Vị trí chịu trách nhiệm', orientation='h', title="Phân bổ trách nhiệm theo vị trí việc làm[cite: 1]")
+        fig_role = px.bar(role_cnt, x='Số lượng mục tiêu', y='Vị trí chịu trách nhiệm', orientation='h', title="Phân bổ trách nhiệm theo vị trí việc làm")
         fig_role.update_layout(height=220, margin=dict(l=5, r=5, t=30, b=5))
         st.plotly_chart(fig_role, use_container_width=True)
 
@@ -459,9 +516,9 @@ elif step == "Bước 3: Lập kế hoạch cá nhân (IEP)":
         with st.form("new_iep"):
             f_sid = st.selectbox("Chọn học sinh:", pd.read_sql("SELECT student_id FROM students", conn)['student_id'].tolist())
             f_plan_id = f"IEP-{f_sid[-2:]}-M{date.today().strftime('%m')}"
-            f_skill = st.text_input("Mục tiêu đo lường được (SMART)[cite: 1]:", placeholder="Ví dụ: Tự hoàn thành bài tập 15 phút với thẻ visual timer")
-            f_strategy = st.text_area("Chiến lược hướng dẫn & Gợi ý hỗ trợ[cite: 1]:")
-            f_role = st.selectbox("Người phụ trách chính[cite: 1]:", ["Giáo viên chủ nhiệm / Bộ môn", "Nhân viên Hỗ trợ GD Người khuyết tật", "Cán bộ Tư vấn học sinh (Điều phối)", "Phụ huynh học sinh"])
+            f_skill = st.text_input("Mục tiêu đo lường được (SMART):", placeholder="Ví dụ: Tự hoàn thành bài tập 15 phút với thẻ visual timer")
+            f_strategy = st.text_area("Chiến lược hướng dẫn & Gợi ý hỗ trợ:")
+            f_role = st.selectbox("Người phụ trách chính:", ["Giáo viên chủ nhiệm / Bộ môn", "Nhân viên Hỗ trợ GD Người khuyết tật", "Cán bộ Tư vấn học sinh (Điều phối)", "Phụ huynh học sinh"])
             
             can_appr = ROLE_PERMISSIONS[current_role]["can_approve"]
             f_appr = current_username if can_appr else "Chờ Cán bộ TVHS duyệt"
@@ -479,11 +536,11 @@ elif step == "Bước 3: Lập kế hoạch cá nhân (IEP)":
 # BƯỚC 4 & 5: CAN THIỆP & THEO DÕI TIẾN TRIỂN
 # ==========================================
 elif step == "Bước 4 & 5: Can thiệp & Theo dõi tiến triển":
-    st.header("Bước 4 & 5: Can thiệp trong lớp học & Phân tích tiến trình thời gian thực[cite: 1]")
+    st.header("Bước 4 & 5: Can thiệp trong lớp học & Phân tích tiến trình thời gian thực")
     
     # Mô phỏng công cụ trực quan hóa hỗ trợ can thiệp tại lớp (Visual Support Toolbox)
     with st.expander("🧩 Bảng Công Cụ Hỗ Trợ Can Thiệp Trực Quan Tại Lớp Học (Visual Schedule Simulator)", expanded=False):
-        st.write("**Mô phỏng Lịch trình trực quan (Visual Schedule) & Thẻ hành vi cho học sinh[cite: 1]:**")
+        st.write("**Mô phỏng Lịch trình trực quan (Visual Schedule) & Thẻ hành vi cho học sinh:**")
         v_col1, v_col2, v_col3, v_col4 = st.columns(4)
         v_col1.markdown("""
         <div style="text-align:center; padding:15px; border:2px dashed #0284C7; border-radius:8px; background:#F0F9FF;">
@@ -540,7 +597,7 @@ elif step == "Bước 4 & 5: Can thiệp & Theo dõi tiến triển":
                 st.rerun()
                 
     with col_view:
-        st.subheader("Đồ thị phân tích tiến bộ theo thời gian[cite: 1]")
+        st.subheader("Đồ thị phân tích tiến bộ theo thời gian")
         df_chart = pd.read_sql(f"SELECT record_date, target_skill, score, notes, logged_by FROM progress_logs WHERE student_id='{selected_student}' ORDER BY record_date ASC", conn)
         if not df_chart.empty:
             fig = px.line(df_chart, x="record_date", y="score", color="target_skill", markers=True, 
@@ -555,37 +612,117 @@ elif step == "Bước 4 & 5: Can thiệp & Theo dõi tiến triển":
             st.info("Chưa có dữ liệu tiến triển cho học sinh này.")
 
 # ==========================================
-# BƯỚC 6: RÀ SOÁT & CHUYỂN TIẾP
+# BƯỚC 6: RÀ SOÁT & CHUYỂN TIẾP (BỔ SUNG VISUALIZATION)
 # ==========================================
 elif step == "Bước 6: Rà soát & Chuyển tiếp":
-    st.header("Bước 6: Rà soát định kỳ & Chuyển tiếp cấp học / năm học[cite: 1]")
-    st.write("Đảm bảo tính liên tục, không bị đứt đoạn hỗ trợ khi học sinh lên lớp mới hoặc chuyển trường[cite: 1].")
+    st.header("Bước 6: Rà soát định kỳ & Hồ sơ Chuyển tiếp Cấp học")
+    st.write("Đảm bảo tính liên tục, không làm gián đoạn sự hỗ trợ khi học sinh lên lớp mới hoặc chuyển cấp học.")
     
-    # Trực quan hóa quy trình chuyển tiếp
-    t_c1, t_c2, t_c3 = st.columns(3)
-    t_c1.info("📌 **Giai đoạn 1:** Tổng kết đánh giá năng lực & Rào cản giác quan cuối năm học.")
-    t_c2.warning("📌 **Giai đoạn 2:** Họp bàn giao giữa giáo viên cũ và giáo viên tiếp nhận năm tới.")
-    t_c3.success("📌 **Giai đoạn 3:** Chuyển giao hồ sơ số IEP và cấu trúc hỗ trợ môi trường lớp học.")
+    # 1. Pipeline 4 bước chuyển tiếp trực quan
+    st.markdown("""
+    <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 160px; background: #F8FAFC; border-top: 4px solid #0284C7; padding: 12px; border-radius: 8px; border: 1px solid #E2E8F0;">
+            <b style="color: #0369A1; font-size: 13px;">1. ĐÁNH GIÁ CUỐI KỲ</b><br>
+            <small style="color: #475569;">Đo lường mức độ đạt mục tiêu theo kế hoạch IEP</small>
+        </div>
+        <div style="flex: 1; min-width: 160px; background: #F8FAFC; border-top: 4px solid #D97706; padding: 12px; border-radius: 8px; border: 1px solid #E2E8F0;">
+            <b style="color: #B45309; font-size: 13px;">2. HỌP BÀN GIAO</b><br>
+            <small style="color: #475569;">Đối thoại giữa GV hiện tại, GV năm tới & Phụ huynh</small>
+        </div>
+        <div style="flex: 1; min-width: 160px; background: #F8FAFC; border-top: 4px solid #059669; padding: 12px; border-radius: 8px; border: 1px solid #E2E8F0;">
+            <b style="color: #047857; font-size: 13px;">3. HỒ SƠ CHUYỂN TIẾP</b><br>
+            <small style="color: #475569;">Bàn giao bản tóm tắt chiến lược & nhạy cảm giác quan</small>
+        </div>
+        <div style="flex: 1; min-width: 160px; background: #F8FAFC; border-top: 4px solid #7C3AED; padding: 12px; border-radius: 8px; border: 1px solid #E2E8F0;">
+            <b style="color: #6D28D9; font-size: 13px;">4. ĐỒNG HÀNH ĐẦU CẤP</b><br>
+            <small style="color: #475569;">Theo dõi thích ứng trong 4 tuần đầu năm học mới</small>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
+    # 2. Hai cột: Biểu đồ Radar năng lực & Thẻ bàn giao nhanh (Passport)
+    col_viz1, col_viz2 = st.columns([1, 1])
+    
+    with col_viz1:
+        st.subheader("Đánh Giá Mức Độ Sẵn Sàng Chuyển Cấp")
+        selected_trans_stu = st.selectbox(
+            "Chọn học sinh xem biểu đồ năng lực chuyển tiếp:", 
+            pd.read_sql("SELECT student_id FROM students", conn)['student_id'].tolist(),
+            index=5  # Mặc định chọn HS-06 (Bé lớp 5 chuẩn bị lên lớp 6)
+        )
+        
+        # Biểu đồ Radar đa chiều (Spider Chart)
+        categories = ['Kiểm soát giác quan', 'Giao tiếp nhu cầu', 'Tương tác bạn bè', 'Tự phục vụ / Độc lập', 'Tuân thủ quy tắc']
+        
+        # Dữ liệu mô phỏng so sánh Đầu năm vs Cuối năm
+        fig_radar = go.Figure()
+        fig_radar.add_trace(go.Scatterpolar(
+            r=[2, 2, 1, 3, 2],
+            theta=categories,
+            fill='toself',
+            name='Đầu năm học',
+            line_color='#94A3B8'
+        ))
+        fig_radar.add_trace(go.Scatterpolar(
+            r=[4, 4, 3, 5, 4],
+            theta=categories,
+            fill='toself',
+            name='Hiện tại (Sẵn sàng chuyển tiếp)',
+            line_color='#0284C7'
+        ))
+        
+        fig_radar.update_layout(
+            polar=dict(radialaxis=dict(visible=True, range=[0, 5])),
+            showlegend=True,
+            height=280,
+            margin=dict(l=40, r=40, t=20, b=20)
+        )
+        st.plotly_chart(fig_radar, use_container_width=True)
+
+    with col_viz2:
+        st.subheader("Hồ Sơ Bàn Giao Nhanh (Inclusion Passport)")
+        stu_row = pd.read_sql(f"SELECT * FROM students WHERE student_id='{selected_trans_stu}'", conn).iloc[0]
+        
+        st.markdown(f"""
+        <div style="background:#FFFFFF; border: 1px solid #CBD5E1; border-radius: 10px; padding: 14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <b style="font-size:16px; color:#1E293B;">Học sinh: {stu_row['alias_name']} ({stu_row['student_id']})</b>
+                <span style="background:#E2E8F0; padding:2px 8px; border-radius:10px; font-size:12px;">{stu_row['grade']}</span>
+            </div>
+            <hr style="margin:8px 0;">
+            <div style="margin-bottom:8px;">
+                <span style="color:#15803D; font-weight:bold;">✅ Điều giáo viên năm tới NÊN LÀM:</span><br>
+                <small style="color:#334155;">- {stu_row['accommodations']}<br>- Khích lệ bằng sở thích: {stu_row['strengths']}</small>
+            </div>
+            <div>
+                <span style="color:#B91C1C; font-weight:bold;">⛔ Yếu tố CẦN TRÁNH / CẨN TRỌNG:</span><br>
+                <small style="color:#334155;">- {stu_row['challenges']}<br>- Không thay đổi lịch trình đột ngột mà không báo trước bằng visual timer.</small>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.write("")
+    st.subheader("Danh Sách Biên Bản Bàn Giao Đã Lưu")
     trans_df = pd.read_sql("""SELECT t.id, t.student_id, s.alias_name, s.grade, t.review_date, t.summary, t.transition_plan, u.full_name as reviewer 
                               FROM transition_reviews t 
                               JOIN students s ON t.student_id = s.student_id
                               LEFT JOIN users u ON t.reviewer_username = u.username""", conn)
     st.dataframe(trans_df, use_container_width=True)
     
-    with st.form("trans_form"):
-        t_sid = st.selectbox("Chọn học sinh chuẩn bị chuyển tiếp:", pd.read_sql("SELECT student_id FROM students", conn)['student_id'].tolist())
-        t_sum = st.text_area("Tóm tắt năng lực đạt được sau giai đoạn can thiệp:")
-        t_plan = st.text_area("Khuyến nghị và điều chỉnh môi trường cần bàn giao cho giáo viên năm học sau[cite: 1]:")
-        
-        if st.form_submit_button("Lưu hồ sơ chuyển tiếp"):
-            c = conn.cursor()
-            c.execute("INSERT INTO transition_reviews (student_id, reviewer_username, review_date, summary, transition_plan) VALUES (?, ?, ?, ?, ?)",
-                      (t_sid, current_username, str(date.today()), t_sum, t_plan))
-            conn.commit()
-            st.success("Đã tạo hồ sơ chuyển tiếp bàn giao thành công!")
-            st.rerun()
-
+    # 3. Form cập nhật hồ sơ chuyển tiếp
+    with st.expander("📝 Lập hoặc Cập nhật Biên bản Chuyển tiếp Cấp học Mới", expanded=False):
+        with st.form("trans_form"):
+            t_sid = st.selectbox("Chọn học sinh cần lập hồ sơ:", pd.read_sql("SELECT student_id FROM students", conn)['student_id'].tolist())
+            t_sum = st.text_area("Tóm tắt năng lực đạt được sau giai đoạn can thiệp:")
+            t_plan = st.text_area("Khuyến nghị cụ thể và môi trường cần chuẩn bị bàn giao cho giáo viên năm tới:")
+            
+            if st.form_submit_button("Lưu & Phát hành Hồ sơ Bàn giao"):
+                c = conn.cursor()
+                c.execute("INSERT INTO transition_reviews (student_id, reviewer_username, review_date, summary, transition_plan) VALUES (?, ?, ?, ?, ?)",
+                          (t_sid, current_username, str(date.today()), t_sum, t_plan))
+                conn.commit()
+                st.success("Đã tạo hồ sơ chuyển tiếp bàn giao thành công!")
+                st.rerun()
 # ==========================================
 # TỔNG HỢP MÔ PHỎNG DỮ LIỆU
 # ==========================================
@@ -617,7 +754,7 @@ elif step == "📊 Tổng hợp Dữ liệu & Mô phỏng":
         fig_avg.update_layout(height=260, margin=dict(l=10, r=10, t=30, b=10))
         st.plotly_chart(fig_avg, use_container_width=True)
 
-    st.subheader("1. Toàn bộ Ca Học Sinh Mẫu Đang Quản Lý (Benchmark Profiles)[cite: 2]")
+    st.subheader("1. Toàn bộ Ca Học Sinh Mẫu Đang Quản Lý (Benchmark Profiles)")
     st.dataframe(pd.read_sql("SELECT * FROM students", conn), use_container_width=True)
     
     st.subheader("2. Danh sách Tài khoản & Phân quyền Hệ thống (RBAC)")
