@@ -23,7 +23,7 @@ def init_and_seed_db():
         assigned_scope TEXT
     )''')
     
-    # 2. Bảng học sinh (Hồ sơ gốc)
+    # 2. Bảng học sinh
     c.execute('''CREATE TABLE IF NOT EXISTS students (
         student_id TEXT PRIMARY KEY,
         alias_name TEXT,
@@ -57,6 +57,28 @@ def init_and_seed_db():
         status TEXT
     )''')
     
+    # --- TỰ ĐỘNG CẬP NHẬT CỘT NẾU DÙNG CSDL CŨ (MIGRATION) ---
+    try:
+        c.execute("ALTER TABLE iep_plans ADD COLUMN approved_by TEXT DEFAULT 'Chờ duyệt'")
+    except sqlite3.OperationalError:
+        pass  # Đã có cột approved_by
+        
+    try:
+        c.execute("ALTER TABLE progress_logs ADD COLUMN target_skill TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        c.execute("ALTER TABLE progress_logs ADD COLUMN logged_by TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        c.execute("ALTER TABLE screenings ADD COLUMN reporter_username TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+    # --------------------------------------------------------
+
     # 5. Bảng nhật ký tiến triển (Bước 4 & 5)
     c.execute('''CREATE TABLE IF NOT EXISTS progress_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -90,7 +112,7 @@ def init_and_seed_db():
         ]
         c.executemany("INSERT INTO users VALUES (?, ?, ?, ?)", mock_users)
     
-    # Nạp 6 ca học sinh chuẩn nếu CSDL còn rỗng
+    # Nạp 6 ca học sinh chuẩn nếu chưa có
     c.execute("SELECT COUNT(*) FROM students")
     if c.fetchone()[0] == 0:
         mock_students = [
@@ -114,7 +136,6 @@ def init_and_seed_db():
         ]
         c.executemany("INSERT INTO iep_plans VALUES (?, ?, ?, ?, ?, ?, ?)", mock_ieps)
 
-        # Dữ liệu tiến triển 4 tuần
         today = date.today()
         mock_logs = []
         for week in range(4):
@@ -124,14 +145,12 @@ def init_and_seed_db():
             mock_logs.append(("IEP-03", "HS-03", "tv_nam", d, "Chủ động giơ thẻ 'Xin nghỉ' khi căng thẳng", min(5, 2 + week), f"Tuần {week+1}: Tự giác đi về góc yên tĩnh"))
         c.executemany("INSERT INTO progress_logs (plan_id, student_id, logged_by, record_date, target_skill, score, notes) VALUES (?, ?, ?, ?, ?, ?, ?)", mock_logs)
 
-        # Sàng lọc ban đầu
         mock_screenings = [
             ("HS-01", "gv_lan", "Giáo viên chủ nhiệm / Bộ môn", "Lúc chuyển tiết", 3, "Bé thường bịt tai và hét lớn khi chuông reo đổi môn", "Cần đánh giá chuyên sâu", today - timedelta(days=35)),
             ("HS-02", "ph_huong", "Phụ huynh học sinh", "Giờ ra chơi", 2, "Ở nhà bé ít chơi với anh em họ, chỉ xếp thú bông thẳng hàng", "Cần theo dõi thêm", today - timedelta(days=40))
         ]
         c.executemany("INSERT INTO screenings (student_id, reporter_username, reporter_role, context, indicators_count, concern_note, risk_level, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", mock_screenings)
 
-        # Chuyển tiếp
         c.execute("""INSERT INTO transition_reviews (student_id, reviewer_username, review_date, summary, transition_plan) 
                      VALUES ('HS-06', 'tv_nam', ?, 'Đạt mục tiêu tiểu học, kỹ năng CNTT xuất sắc', 'Gửi hồ sơ IEP tóm tắt cho BGH trường THCS tiếp nhận')""", (str(today),))
         
