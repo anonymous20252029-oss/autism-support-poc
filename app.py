@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import sqlite3
 from datetime import date, timedelta
 
@@ -16,7 +15,7 @@ def init_and_seed_db():
     conn = get_db()
     c = conn.cursor()
     
-    # Bảng người dùng hệ thống (RBAC)
+    # 1. Bảng người dùng hệ thống (RBAC)
     c.execute('''CREATE TABLE IF NOT EXISTS users (
         username TEXT PRIMARY KEY,
         full_name TEXT,
@@ -24,7 +23,7 @@ def init_and_seed_db():
         assigned_scope TEXT
     )''')
     
-    # Bảng học sinh
+    # 2. Bảng học sinh
     c.execute('''CREATE TABLE IF NOT EXISTS students (
         student_id TEXT PRIMARY KEY,
         alias_name TEXT,
@@ -34,7 +33,7 @@ def init_and_seed_db():
         accommodations TEXT
     )''')
     
-    # Bảng tiếp nhận & sàng lọc (Bước 1)
+    # 3. Bảng tiếp nhận & sàng lọc (Bước 1)
     c.execute('''CREATE TABLE IF NOT EXISTS screenings (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         student_id TEXT,
@@ -47,7 +46,7 @@ def init_and_seed_db():
         created_at DATE
     )''')
     
-    # Bảng kế hoạch IEP (Bước 2 & 3)
+    # 4. Bảng kế hoạch IEP (Bước 2 & 3)
     c.execute('''CREATE TABLE IF NOT EXISTS iep_plans (
         plan_id TEXT PRIMARY KEY,
         student_id TEXT,
@@ -58,18 +57,19 @@ def init_and_seed_db():
         status TEXT
     )''')
     
-    # Bảng nhật ký tiến triển (Bước 4 & 5)
+    # 5. Bảng nhật ký tiến triển (Bước 4 & 5)
     c.execute('''CREATE TABLE IF NOT EXISTS progress_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         plan_id TEXT,
         student_id TEXT,
         logged_by TEXT,
         record_date DATE,
+        target_skill TEXT,
         score INTEGER,
         notes TEXT
     )''')
     
-    # Bảng chuyển tiếp (Bước 6)
+    # 6. Bảng chuyển tiếp (Bước 6)
     c.execute('''CREATE TABLE IF NOT EXISTS transition_reviews (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         student_id TEXT,
@@ -79,18 +79,18 @@ def init_and_seed_db():
         transition_plan TEXT
     )''')
     
-    # Nạp tài khoản mẫu đại diện cho 4 nhóm tác nhân
+    # Nạp người dùng mẫu
     c.execute("SELECT COUNT(*) FROM users")
     if c.fetchone()[0] == 0:
         mock_users = [
             ("gv_lan", "Cô Hoàng Lan", "Giáo viên chủ nhiệm / Bộ môn", "Khối 1, 2, 3, 4, 5"),
             ("tv_nam", "Thầy Trần Nam", "Cán bộ Tư vấn học sinh (Điều phối)", "Toàn trường (Điều phối ca)"),
             ("ht_minh", "Thầy Lê Minh", "Nhân viên Hỗ trợ GD Người khuyết tật", "Chuyên trách can thiệp chuyên biệt"),
-            ("ph_huong", "Mẹ bé M.K (Chị Hương)", "Phụ huynh học sinh", "Chỉ xem HS-01")
+            ("ph_huong", "Mẹ bé M.K (Chị Hương)", "Phụ huynh học sinh", "Theo dõi HS-01")
         ]
         c.executemany("INSERT INTO users VALUES (?, ?, ?, ?)", mock_users)
     
-    # Nạp 6 ca lâm sàng học đường chuẩn
+    # Nạp 6 ca học sinh chuẩn
     c.execute("SELECT COUNT(*) FROM students")
     if c.fetchone()[0] == 0:
         mock_students = [
@@ -114,26 +114,26 @@ def init_and_seed_db():
         ]
         c.executemany("INSERT INTO iep_plans VALUES (?, ?, ?, ?, ?, ?, ?)", mock_ieps)
 
-        # Dữ liệu chuỗi thời gian 4 tuần
+        # Dữ liệu tiến triển 4 tuần
         today = date.today()
         mock_logs = []
         for week in range(4):
             d = today - timedelta(days=(3 - week) * 7)
-            mock_logs.append(("IEP-01", "HS-01", "ht_minh", d, 1 + week, f"Tuần {week+1}: Bé giảm dần thời lượng khóc khi chuông reo"))
-            mock_logs.append(("IEP-02", "HS-02", "gv_lan", d, 2 + (1 if week >= 2 else 0), f"Tuần {week+1}: Đã bắt đầu đứng gần nhóm bạn"))
-            mock_logs.append(("IEP-03", "HS-03", "tv_nam", d, min(5, 2 + week), f"Tuần {week+1}: Tự giác đi về góc yên tĩnh mà không tự cào tay"))
-        c.executemany("INSERT INTO progress_logs (plan_id, student_id, logged_by, record_date, score, notes) VALUES (?, ?, ?, ?, ?, ?)", mock_logs)
+            mock_logs.append(("IEP-01", "HS-01", "ht_minh", d, "Chuyển tiết học mà không la hét", 1 + week, f"Tuần {week+1}: Giảm đáng kể thời lượng khóc khi đổi tiết"))
+            mock_logs.append(("IEP-02", "HS-02", "gv_lan", d, "Chủ động mời bạn cùng chơi 1 lần/ngày", 2 + (1 if week >= 2 else 0), f"Tuần {week+1}: Đã bắt đầu đứng gần nhóm bạn"))
+            mock_logs.append(("IEP-03", "HS-03", "tv_nam", d, "Chủ động giơ thẻ 'Xin nghỉ' khi căng thẳng", min(5, 2 + week), f"Tuần {week+1}: Tự giác đi về góc yên tĩnh"))
+        c.executemany("INSERT INTO progress_logs (plan_id, student_id, logged_by, record_date, target_skill, score, notes) VALUES (?, ?, ?, ?, ?, ?, ?)", mock_logs)
 
-        # Sàng lọc ban đầu
+        # Sàng lọc
         mock_screenings = [
             ("HS-01", "gv_lan", "Giáo viên chủ nhiệm / Bộ môn", "Lúc chuyển tiết", 3, "Bé thường bịt tai và hét lớn khi chuông reo đổi môn", "Cần đánh giá chuyên sâu", today - timedelta(days=35)),
-            ("HS-02", "ph_huong", "Phụ huynh học sinh", "Giờ ra chơi", 2, "Ở nhà bé cũng ít chơi với anh em họ, chỉ thích xếp thú bông", "Cần theo dõi thêm", today - timedelta(days=40))
+            ("HS-02", "ph_huong", "Phụ huynh học sinh", "Giờ ra chơi", 2, "Ở nhà bé ít chơi với anh em họ, chỉ xếp thú bông thẳng hàng", "Cần theo dõi thêm", today - timedelta(days=40))
         ]
         c.executemany("INSERT INTO screenings (student_id, reporter_username, reporter_role, context, indicators_count, concern_note, risk_level, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", mock_screenings)
 
-        # Biên bản chuyển tiếp
+        # Chuyển tiếp
         c.execute("""INSERT INTO transition_reviews (student_id, reviewer_username, review_date, summary, transition_plan) 
-                     VALUES ('HS-06', 'tv_nam', ?, 'Đạt mục tiêu tiểu học, kỹ năng máy tính xuất sắc', 'Gửi hồ sơ IEP tóm tắt cho BGH trường THCS tiếp nhận')""", (str(today),))
+                     VALUES ('HS-06', 'tv_nam', ?, 'Đạt mục tiêu tiểu học, kỹ năng CNTT xuất sắc', 'Gửi hồ sơ IEP tóm tắt cho BGH trường THCS tiếp nhận')""", (str(today),))
         
     conn.commit()
     conn.close()
@@ -141,40 +141,44 @@ def init_and_seed_db():
 init_and_seed_db()
 
 # ==========================================
-# GIAO DIỆN & QUẢN LÝ PHÂN QUYỀN (RBAC)
+# THIẾT LẬP GIAO DIỆN & PHÂN QUYỀN
 # ==========================================
 st.set_page_config(page_title="Nền tảng Hỗ trợ Hòa nhập Học sinh RLPTK", layout="wide", page_icon="🏫")
 conn = get_db()
 
-# BẢNG MA TRẬN PHÂN QUYỀN (RACI Matrix cho chuỗi 6 bước)
+# Cấu hình phân quyền (RBAC)
 ROLE_PERMISSIONS = {
     "Giáo viên chủ nhiệm / Bộ môn": {
-        "allowed_steps": ["Sơ đồ Mô phỏng & Tổng quan", "Bước 1: Tiếp nhận & Nhận diện nguy cơ", "Bước 4 & 5: Can thiệp & Theo dõi tiến triển", "📊 Báo cáo Dữ liệu"],
+        "can_edit_student": False,
         "can_create_iep": False,
         "can_approve": False,
+        "can_trans": False,
         "desc": "Theo dõi hàng ngày, phát hiện sớm dấu hiệu nguy cơ, thực hiện can thiệp và chấm điểm tiến triển trong giờ học."
     },
     "Cán bộ Tư vấn học sinh (Điều phối)": {
-        "allowed_steps": ["Sơ đồ Mô phỏng & Tổng quan", "Bước 1: Tiếp nhận & Nhận diện nguy cơ", "Bước 2: Họp nhóm & Đánh giá nhu cầu", "Bước 3: Lập kế hoạch cá nhân (IEP)", "Bước 4 & 5: Can thiệp & Theo dõi tiến triển", "Bước 6: Rà soát & Chuyển tiếp", "📊 Báo cáo Dữ liệu"],
+        "can_edit_student": True,
         "can_create_iep": True,
         "can_approve": True,
-        "desc": "Đầu mối tiếp nhận, kích hoạt họp nhóm, phê duyệt kế hoạch IEP, điều phối chuyển gửi chuyên khoa và tổ chức bàn giao chuyển cấp."
+        "can_trans": True,
+        "desc": "Đầu mối điều phối ca, tạo/sửa hồ sơ học sinh, kích hoạt họp nhóm, phê duyệt IEP và chủ trì bàn giao chuyển tiếp."
     },
     "Nhân viên Hỗ trợ GD Người khuyết tật": {
-        "allowed_steps": ["Sơ đồ Mô phỏng & Tổng quan", "Bước 2: Họp nhóm & Đánh giá nhu cầu", "Bước 3: Lập kế hoạch cá nhân (IEP)", "Bước 4 & 5: Can thiệp & Theo dõi tiến triển", "📊 Báo cáo Dữ liệu"],
+        "can_edit_student": True,
         "can_create_iep": True,
         "can_approve": False,
-        "desc": "Chuyên trách thiết lập kỹ thuật can thiệp, chuẩn bị học liệu visual/AAC, hướng dẫn giáo viên và ghi nhật ký tiến triển."
+        "can_trans": False,
+        "desc": "Chuyên trách thiết lập mục tiêu kỹ thuật, tài liệu học tập trực quan và cùng giáo viên ghi nhận tiến triển."
     },
     "Phụ huynh học sinh": {
-        "allowed_steps": ["Sơ đồ Mô phỏng & Tổng quan", "Bước 1: Tiếp nhận & Nhận diện nguy cơ", "Bước 4 & 5: Can thiệp & Theo dõi tiến triển"],
+        "can_edit_student": False,
         "can_create_iep": False,
         "can_approve": False,
-        "desc": "Cung cấp phản ánh lo ngại tại gia đình, đồng thuận kế hoạch can thiệp và theo dõi biểu đồ tiến bộ của con."
+        "can_trans": False,
+        "desc": "Cung cấp thông tin quan sát tại nhà, đồng thuận kế hoạch và theo dõi đồ thị tiến bộ của con."
     }
 }
 
-# Sidebar - Quản lý tài khoản đăng nhập
+# Sidebar - Quản lý tài khoản
 st.sidebar.title("HỆ THỐNG HÒA NHẬP")
 st.sidebar.caption("Chuyển đổi số theo TT 11/2024 & TT 21/2023")
 
@@ -187,42 +191,49 @@ current_user_row = users_df[users_df['username'] == current_username].iloc[0]
 current_role = current_user_row['role']
 
 st.sidebar.markdown(f"**Vai trò:** `{current_role}`")
-st.sidebar.info(f"📌 **Trách nhiệm:** {ROLE_PERMISSIONS[current_role]['desc']}")
+st.sidebar.info(f"📌 **Nhiệm vụ:** {ROLE_PERMISSIONS[current_role]['desc']}")
 
-st.sidebar.divider()
+# Chế độ hiển thị: Luôn cho phép duyệt tất cả các bước (đầy đủ như phiên bản gốc)
+show_all_menu = st.sidebar.checkbox("Hiển thị đầy đủ tất cả các bước", value=True)
 
-# Menu điều hướng theo phân quyền
 all_steps = [
     "Sơ đồ Mô phỏng & Tổng quan",
-    "Bước 1: Tiếp nhận & Nhận diện nguy cơ",
-    "Bước 2: Họp nhóm & Đánh giá nhu cầu",
-    "Bước 3: Lập kế hoạch cá nhân (IEP)",
-    "Bước 4 & 5: Can thiệp & Theo dõi tiến triển",
-    "Bước 6: Rà soát & Chuyển tiếp",
-    "📊 Báo cáo Dữ liệu"
+    "1. Tiếp nhận & Nhận diện nguy cơ",
+    "2. Hồ sơ Học sinh & Đánh giá nhu cầu",
+    "3. Kế hoạch Cá nhân hóa (Digital IEP)",
+    "4. Nhật ký Can thiệp & Biểu đồ tiến triển",
+    "5. Rà soát & Chuyển tiếp",
+    "📊 Báo cáo Dữ liệu & Mô phỏng"
 ]
 
-menu_options = [s for s in all_steps if s in ROLE_PERMISSIONS[current_role]['allowed_steps']]
-step = st.sidebar.radio("Quy trình khả dụng cho bạn:", menu_options)
+if show_all_menu:
+    menu_options = all_steps
+else:
+    # Lọc các bước phù hợp vai trò
+    allowed = ["Sơ đồ Mô phỏng & Tổng quan", "1. Tiếp nhận & Nhận diện nguy cơ", "4. Nhật ký Can thiệp & Biểu đồ tiến triển", "📊 Báo cáo Dữ liệu & Mô phỏng"]
+    if ROLE_PERMISSIONS[current_role]["can_create_iep"] or ROLE_PERMISSIONS[current_role]["can_edit_student"]:
+        allowed.extend(["2. Hồ sơ Học sinh & Đánh giá nhu cầu", "3. Kế hoạch Cá nhân hóa (Digital IEP)"])
+    if ROLE_PERMISSIONS[current_role]["can_trans"]:
+        allowed.append("5. Rà soát & Chuyển tiếp")
+    menu_options = [s for s in all_steps if s in allowed]
+
+step = st.sidebar.radio("Quy trình nghiệp vụ:", menu_options)
 
 st.sidebar.divider()
 st.sidebar.markdown("""
 <div style='font-size:12px; color:gray;'>
-<b>Nhóm Nghiên cứu Kỹ thuật:</b><br>
-ThS. Võ Thị Kim Anh (TDTU & FEI/VSB)<br>
-<b>Cơ sở Lý luận:</b><br>
-PGS.TS. Nguyễn Văn Tường & TS. Lê Thị Thanh Huyền
+<b>Nhóm Kỹ thuật:</b> ThS. Võ Thị Kim Anh (TDTU & FEI/VSB)<br>
+<b>Cơ sở Lý luận:</b> PGS.TS. Nguyễn Văn Tường & TS. Lê Thị Thanh Huyền
 </div>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# SƠ ĐỒ MÔ PHỎNG HÌNH ẢNH TRỰC QUAN (VISUAL PIPELINE)
+# SƠ ĐỒ MÔ PHỎNG HÌNH ẢNH TRỰC QUAN
 # ==========================================
 if step == "Sơ đồ Mô phỏng & Tổng quan":
-    st.header("Sơ Đồ Mô Phỏng Quy Trình 6 Bước & Phân Bổ Trách Nhiệm")
-    st.markdown("Quy trình khép kín, liên tục kết nối **Dữ liệu – Con người – Trách nhiệm** trong môi trường trường học:")
+    st.header("Sơ Đồ Mô Phỏng Chuỗi 6 Bước Liên Tục & Trách Nhiệm Phối Hợp")
+    st.write("Mô hình tích hợp số hóa kết nối chặt chẽ **Dữ liệu – Con người – Trách nhiệm** trong môi trường học đường:")
     
-    # 1. Bảng trực quan hóa dòng quy trình 6 bước
     col_steps = st.columns(6)
     step_metadata = [
         ("1. Tiếp nhận", "Giáo viên / Phụ huynh", "Ghi nhận lo ngại có cấu trúc", "#E0F2FE", "#0369A1"),
@@ -244,9 +255,7 @@ if step == "Sơ đồ Mô phỏng & Tổng quan":
             """, unsafe_allow_html=True)
             
     st.write("")
-    
-    # 2. Sơ đồ ma trận trách nhiệm (RACI Chart trực quan)
-    st.subheader("Ma trận Phân quyền & Vai trò Tham gia (RACI Matrix)")
+    st.subheader("Ma Trận Trách Nhiệm Nghiệp Vụ (RACI Matrix)")
     raci_data = pd.DataFrame([
         {"Bước nghiệp vụ": "Bước 1: Sàng lọc & Tiếp nhận lo ngại", "GV Chủ nhiệm": "Chủ trì (R)", "Tư vấn HS": "Phối hợp (C)", "NV Hỗ trợ GDHN": "Tham vấn (I)", "Phụ huynh": "Đồng thuận (A)"},
         {"Bước nghiệp vụ": "Bước 2: Họp nhóm & Đánh giá nhu cầu", "GV Chủ nhiệm": "Tham gia (C)", "Tư vấn HS": "Chủ trì (R)", "NV Hỗ trợ GDHN": "Phối hợp (C)", "Phụ huynh": "Tham gia (C)"},
@@ -256,173 +265,206 @@ if step == "Sơ đồ Mô phỏng & Tổng quan":
         {"Bước nghiệp vụ": "Bước 6: Rà soát & Chuyển tiếp cấp học", "GV Chủ nhiệm": "Bàn giao (C)", "Tư vấn HS": "Chủ trì (R)", "NV Hỗ trợ GDHN": "Tổng kết (C)", "Phụ huynh": "Đồng hành (C)"}
     ])
     st.dataframe(raci_data, use_container_width=True, hide_index=True)
-    st.caption("*(R: Responsible - Người làm | A: Accountable - Người duyệt/chịu trách nhiệm | C: Consulted - Tham vấn | I: Informed - Nhận thông tin)*")
+    st.caption("*(R: Responsible - Thực hiện | A: Accountable - Phê duyệt | C: Consulted - Tham vấn | I: Informed - Nhận thông tin)*")
 
 # ==========================================
-# BƯỚC 1: TIẾP NHẬN & SÀNG LỌC NGUY CƠ
+# BƯỚC 1: TIẾP NHẬN & NHẬN DIỆN NGUY CƠ
 # ==========================================
-elif step == "Bước 1: Tiếp nhận & Nhận diện nguy cơ":
+elif step == "1. Tiếp nhận & Nhận diện nguy cơ":
     st.header("Bước 1: Tiếp nhận lo ngại & Nhận diện có cấu trúc")
-    st.warning("⚠️ **Nguyên tắc đạo đức dữ liệu:** Bảng kiểm chỉ hỗ trợ nhận diện sơ bộ dấu hiệu cần đánh giá thêm. Tuyệt đối **không kết luận chẩn đoán** thay thế bác sĩ/chuyên gia tâm lý lâm sàng.")
+    st.warning("⚠️ **Nguyên tắc đạo đức dữ liệu:** Bảng kiểm chỉ hỗ trợ nhận diện sơ bộ dấu hiệu cần đánh giá thêm, tuyệt đối **không đưa ra kết luận chẩn đoán** thay thế chuyên gia lâm sàng.")
     
     col1, col2 = st.columns([1, 1])
     with col1:
-        st.subheader("Gửi Phiếu Ghi Nhận Lo Ngại Mới")
+        st.subheader("Gửi Phiếu Ghi Nhận Lo Ngại")
         with st.form("form_screening"):
             students = pd.read_sql("SELECT student_id, alias_name FROM students", conn)
             sid = st.selectbox("Chọn học sinh quan sát:", students.apply(lambda r: f"{r['student_id']} - {r['alias_name']}", axis=1))
             real_sid = sid.split(" - ")[0]
             context = st.selectbox("Bối cảnh quan sát:", ["Giờ học", "Giờ ra chơi", "Hoạt động nhóm", "Lúc chuyển tiết", "Tại nhà"])
             
-            st.write("**Chỉ báo hành vi quan sát có cấu trúc:**")
-            q1 = st.checkbox("Phản ứng quá mức với âm thanh lớn, ánh sáng hoặc xúc giác")
-            q2 = st.checkbox("Khó khăn rõ rệt khi đổi hoạt động hoặc thay đổi thời khóa biểu")
-            q3 = st.checkbox("Hạn chế tương tác mắt, ít phản hồi khi giáo viên gọi tên")
-            q4 = st.checkbox("Khó khăn trong chia sẻ trò chơi hoặc bày tỏ nhu cầu với bạn")
+            st.write("**Bảng kiểm quan sát hành vi có cấu trúc:**")
+            q1 = st.checkbox("Có phản ứng quá mức với kích thích giác quan (âm thanh chuông, ánh sáng)")
+            q2 = st.checkbox("Gặp khó khăn lớn khi thay đổi lịch trình hoặc thứ tự hoạt động thường lệ")
+            q3 = st.checkbox("Hạn chế tương tác mắt, ít phản hồi khi người khác gọi tên hoặc bắt chuyện")
+            q4 = st.checkbox("Khó khăn trong việc hiểu ngôn ngữ cơ thể hoặc bày tỏ nhu cầu với bạn bè")
             
-            note = st.text_area("Mô tả chi tiết hành vi quan sát:")
+            note = st.text_area("Mô tả chi tiết lo ngại của người quan sát:")
             
-            if st.form_submit_button("Lưu & Gửi tới Cán bộ Tư vấn học sinh"):
+            if st.form_submit_button("Lưu Phiếu Tiếp Nhận"):
                 score = sum([q1, q2, q3, q4])
                 risk = "Cần đánh giá chuyên sâu" if score >= 2 else "Mức độ thông thường (theo dõi thêm)"
                 c = conn.cursor()
                 c.execute("""INSERT INTO screenings (student_id, reporter_username, reporter_role, context, indicators_count, concern_note, risk_level, created_at)
                              VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", (real_sid, current_username, current_role, context, score, note, risk, str(date.today())))
                 conn.commit()
-                st.success(f"Đã lưu thành công! Chỉ số cảnh báo: {score}/4 ({risk}). Phiếu đã được điều phối tới Cán bộ Tư vấn học sinh.")
+                st.success(f"Đã ghi nhận! Kết quả sàng lọc: **{risk}** (Số chỉ báo: {score}/4). Đã chuyển thông tin tới Cán bộ Tư vấn học sinh.")
+                st.rerun()
 
     with col2:
-        st.subheader("Lịch sử Các Phiếu Tiếp Nhận Đã Gửi")
+        st.subheader("Lịch Sử Các Phiếu Sàng Lọc Đã Gửi")
         scrs = pd.read_sql("SELECT id, student_id, reporter_role, context, indicators_count, risk_level, created_at FROM screenings ORDER BY id DESC", conn)
         st.dataframe(scrs, use_container_width=True)
 
 # ==========================================
-# BƯỚC 2: HỌP NHÓM & ĐÁNH GIÁ NHU CẦU
+# BƯỚC 2: HỒ SƠ HỌC SINH & ĐÁNH GIÁ NHU CẦU
 # ==========================================
-elif step == "Bước 2: Họp nhóm & Đánh giá nhu cầu":
-    st.header("Bước 2: Họp nhóm hỗ trợ & Đánh giá nhu cầu giáo dục đa nguồn")
-    st.info("💡 **Điều phối viên:** Cán bộ Tư vấn học sinh chủ trì phiên họp, đặt các nguồn thông tin từ Gia đình, Nhà trường và Chuyên khoa cạnh nhau.")
+elif step == "2. Hồ sơ Học sinh & Đánh giá nhu cầu":
+    st.header("Bước 2: Hồ Sơ Học Sinh & Đánh Giá Nhu Cầu Đa Nguồn")
+    st.info("💡 Kết nối dữ liệu đa nguồn từ Nhà trường, Gia đình và Cơ sở y tế/chuyên môn để xác định rõ thế mạnh và rào cản.")
     
+    # Tính năng cũ: Form thêm/cập nhật học sinh mới
+    with st.expander("➕ Thêm mới / Cập nhật Hồ sơ Học sinh (Dành cho Quản trị/Điều phối)", expanded=False):
+        if not ROLE_PERMISSIONS[current_role]["can_edit_student"]:
+            st.warning("🔒 Vai trò của bạn chỉ có quyền xem, không có quyền sửa đổi hồ sơ học sinh gốc.")
+        else:
+            with st.form("form_student_add"):
+                c_s1, c_s2 = st.columns(2)
+                f_sid = c_s1.text_input("Mã định danh học sinh (Ví dụ: HS-07):")
+                f_alias = c_s2.text_input("Tên viết tắt ẩn danh (Ví dụ: Bé T.K):")
+                f_grade = c_s1.selectbox("Khối lớp:", ["Lớp 1", "Lớp 2", "Lớp 3", "Lớp 4", "Lớp 5"])
+                f_strengths = st.text_area("Thế mạnh & Sở thích (Trí nhớ, hình ảnh, âm nhạc, kỷ luật...):")
+                f_challenges = st.text_area("Khó khăn / Rào cản học tập (Giác quan, giao tiếp, bùng nổ...):")
+                f_accom = st.text_area("Điều chỉnh môi trường lớp học đề xuất:")
+                
+                if st.form_submit_button("Lưu Hồ Sơ Học Sinh"):
+                    if f_sid and f_alias:
+                        c = conn.cursor()
+                        c.execute("INSERT OR REPLACE INTO students VALUES (?, ?, ?, ?, ?, ?)",
+                                  (f_sid, f_alias, f_grade, f_strengths, f_challenges, f_accom))
+                        conn.commit()
+                        st.success("Đã cập nhật hồ sơ học sinh thành công!")
+                        st.rerun()
+                    else:
+                        st.error("Vui lòng điền mã học sinh và tên viết tắt!")
+
+    # Chi tiết đánh giá từng học sinh
     st_list = pd.read_sql("SELECT * FROM students", conn)
-    sel_sid = st.selectbox("Chọn hồ sơ học sinh:", st_list['student_id'].tolist())
+    sel_sid = st.selectbox("Chọn hồ sơ học sinh cần rà soát:", st_list['student_id'].tolist())
     s_info = st_list[st_list['student_id'] == sel_sid].iloc[0]
     
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader(f"Hồ sơ Tổng hợp: {s_info['alias_name']} ({s_info['student_id']})")
+        st.subheader(f"Hồ Sơ Năng Lực: {s_info['alias_name']} ({s_info['student_id']})")
         st.markdown(f"- **Khối lớp:** {s_info['grade']}")
-        st.markdown(f"- **Điểm mạnh & Sở thích:** :green[{s_info['strengths']}]")
+        st.markdown(f"- **Thế mạnh & Sở thích:** :green[{s_info['strengths']}]")
         st.markdown(f"- **Rào cản & Khó khăn:** :red[{s_info['challenges']}]")
-        st.markdown(f"- **Điều chỉnh đề xuất:** {s_info['accommodations']}")
+        st.markdown(f"- **Điều chỉnh lớp học:** {s_info['accommodations']}")
         
     with c2:
-        st.subheader("Lịch sử Sàng lọc Đa nguồn")
+        st.subheader("Lịch Sử Báo Cáo Sàng Lọc Từ Giáo Viên & Phụ Huynh")
         hist = pd.read_sql(f"SELECT reporter_role, context, indicators_count, risk_level, concern_note, created_at FROM screenings WHERE student_id='{sel_sid}'", conn)
         if not hist.empty:
             st.dataframe(hist, use_container_width=True)
         else:
-            st.caption("Chưa có bản ghi sàng lọc trước đó.")
+            st.caption("Chưa có ghi nhận sàng lọc trước đó.")
 
 # ==========================================
-# BƯỚC 3: LẬP KẾ HOẠCH CÁ NHÂN (IEP)
+# BƯỚC 3: KẾ HOẠCH CÁ NHÂN HÓA (DIGITAL IEP)
 # ==========================================
-elif step == "Bước 3: Lập kế hoạch cá nhân (IEP)":
-    st.header("Bước 3: Hồ sơ Hỗ trợ Giáo dục Cá nhân (Digital IEP)")
+elif step == "3. Kế hoạch Cá nhân hóa (Digital IEP)":
+    st.header("Bước 3: Hồ Sơ Hỗ Trợ Giáo Dục Cá Nhân Hóa (Digital IEP)")
+    st.write("Xây dựng mục tiêu SMART, phân công rõ người phụ trách và theo dõi trạng thái phê duyệt.")
     
-    # Kiểm tra quyền tạo/duyệt
-    can_edit = ROLE_PERMISSIONS[current_role]['can_create_iep']
-    can_appr = ROLE_PERMISSIONS[current_role]['can_approve']
-    
-    if not can_edit:
-        st.warning(f"🔒 **Quyền hạn chế:** Tài khoản vai trò **{current_role}** chỉ có quyền Xem hồ sơ IEP đã phê duyệt.")
-        
-    iep_df = pd.read_sql("""SELECT iep.plan_id, iep.student_id, s.alias_name, iep.target_skill, 
-                                   iep.strategy, iep.lead_role, iep.approved_by, iep.status 
+    # Bảng danh sách IEP hiện tại
+    iep_df = pd.read_sql("""SELECT iep.plan_id, iep.student_id, s.alias_name, s.grade, iep.target_skill, 
+                                   iep.strategy, s.accommodations, iep.lead_role, iep.approved_by, iep.status 
                             FROM iep_plans iep JOIN students s ON iep.student_id = s.student_id""", conn)
     st.dataframe(iep_df, use_container_width=True)
     
-    if can_edit:
-        st.divider()
-        st.subheader("➕ Thiết lập hoặc Điều chỉnh Mục tiêu Can thiệp (SMART)")
-        with st.form("form_iep"):
-            f_sid = st.selectbox("Chọn học sinh:", pd.read_sql("SELECT student_id FROM students", conn)['student_id'].tolist())
-            f_pid = f"IEP-{f_sid[-2:]}-M{date.today().strftime('%m')}"
-            f_skill = st.text_input("Mục tiêu đo lường được (SMART):", placeholder="Ví dụ: Giảm số lần bùng nổ khi đổi tiết xuống dưới 1 lần/tuần")
-            f_strat = st.text_area("Chiến lược hỗ trợ và điều chỉnh môi trường:")
-            f_role = st.selectbox("Vị trí chịu trách nhiệm chính:", [
-                "Nhân viên Hỗ trợ GD Người khuyết tật", 
-                "Giáo viên chủ nhiệm / Bộ môn", 
-                "Cán bộ Tư vấn học sinh (Điều phối)"
-            ])
-            
-            f_appr = current_username if can_appr else "Chờ Cán bộ TVHS duyệt"
-            f_status = "Đã phê duyệt" if can_appr else "Chờ duyệt"
-            
-            if st.form_submit_button("Lưu Kế hoạch IEP"):
-                c = conn.cursor()
-                c.execute("INSERT OR REPLACE INTO iep_plans VALUES (?, ?, ?, ?, ?, ?, ?)",
-                          (f_pid, f_sid, f_skill, f_strat, f_role, f_appr, f_status))
-                conn.commit()
-                st.success(f"Đã lưu kế hoạch {f_pid}! Trạng thái: **{f_status}**.")
-                st.rerun()
-
-# ==========================================
-# BƯỚC 4 & 5: CAN THIỆP & THEO DÕI TIẾN TRIỂN
-# ==========================================
-elif step == "Bước 4 & 5: Can thiệp & Theo dõi tiến triển":
-    st.header("Bước 4 & 5: Thực hiện Can thiệp & Theo dõi Dữ liệu Tiến triển")
+    # Form tạo hoặc điều chỉnh IEP
+    can_create = ROLE_PERMISSIONS[current_role]["can_create_iep"]
+    can_appr = ROLE_PERMISSIONS[current_role]["can_approve"]
     
-    col_in, col_viz = st.columns([1, 2])
-    
-    with col_in:
-        st.subheader("Ghi nhận Đánh giá Tiến bộ")
-        with st.form("form_log"):
-            sel_s = st.selectbox("Học sinh:", pd.read_sql("SELECT student_id FROM students", conn)['student_id'].tolist())
-            plans = pd.read_sql(f"SELECT plan_id, target_skill FROM iep_plans WHERE student_id='{sel_s}'", conn)
-            
-            if not plans.empty:
-                plan_str = st.selectbox("Mục tiêu đang theo dõi:", plans['plan_id'] + " - " + plans['target_skill'])
-                real_pid = plan_str.split(" - ")[0]
-            else:
-                real_pid = "IEP-TEMP"
-                st.caption("Chưa có kế hoạch chính thức.")
+    with st.expander("➕ Thiết lập hoặc Điều chỉnh Mục tiêu IEP Mới", expanded=can_create):
+        if not can_create:
+            st.warning(f"🔒 Vai trò **{current_role}** chỉ có quyền xem kế hoạch đã được phê duyệt.")
+        else:
+            with st.form("form_new_iep"):
+                f_sid = st.selectbox("Chọn học sinh:", pd.read_sql("SELECT student_id FROM students", conn)['student_id'].tolist())
+                f_pid = f"IEP-{f_sid[-2:]}-M{date.today().strftime('%m')}"
+                f_skill = st.text_input("Mục tiêu đo lường được (SMART):", placeholder="Ví dụ: Tự hoàn thành bài tập 15 phút với thẻ visual timer")
+                f_strategy = st.text_area("Chiến lược hướng dẫn & Gợi ý can thiệp:")
+                f_role = st.selectbox("Người phụ trách chính:", [
+                    "Nhân viên Hỗ trợ GD Người khuyết tật", 
+                    "Giáo viên chủ nhiệm / Bộ môn", 
+                    "Cán bộ Tư vấn học sinh (Điều phối)"
+                ])
                 
-            log_d = st.date_input("Ngày quan sát:", date.today())
-            log_score = st.slider("Mức độ độc lập / tự chủ (Thang 1 - 5):", 1, 5, 3,
-                                  help="1: Cần hỗ trợ hoàn toàn | 3: Cần gợi ý hình ảnh/lời nói | 5: Độc lập hoàn toàn")
-            log_note = st.text_input("Ghi chú biểu hiện cụ thể:")
+                f_appr = current_username if can_appr else "Chờ Cán bộ TVHS duyệt"
+                f_status = "Đã phê duyệt" if can_appr else "Chờ duyệt"
+                
+                if st.form_submit_button("Lưu Mục Tiêu Vào Kế Hoạch IEP"):
+                    c = conn.cursor()
+                    c.execute("INSERT OR REPLACE INTO iep_plans VALUES (?, ?, ?, ?, ?, ?, ?)",
+                              (f_pid, f_sid, f_skill, f_strategy, f_role, f_appr, f_status))
+                    conn.commit()
+                    st.success(f"Đã lưu kế hoạch {f_pid}! Trạng thái: **{f_status}**.")
+                    st.rerun()
+
+# ==========================================
+# BƯỚC 4 & 5: NHẬT KÝ CAN THIỆP & BIỂU ĐỒ TIẾN TRIỂN
+# ==========================================
+elif step == "4. Nhật ký Can thiệp & Biểu đồ tiến triển":
+    st.header("Bước 4 & 5: Nhật Ký Can Thiệp Trong Lớp & Biểu Đồ Tiến Triển")
+    
+    col_input, col_chart = st.columns([1, 2])
+    
+    with col_input:
+        st.subheader("Ghi Nhận Đánh Giá Hàng Tuần")
+        with st.form("form_progress_entry"):
+            sel_student = st.selectbox("Chọn học sinh:", pd.read_sql("SELECT student_id FROM students", conn)['student_id'].tolist())
+            current_plans = pd.read_sql(f"SELECT plan_id, target_skill FROM iep_plans WHERE student_id='{sel_student}'", conn)
             
-            if st.form_submit_button("Lưu Điểm Tiến Triển"):
+            if not current_plans.empty:
+                plan_choice = st.selectbox("Mục tiêu đang can thiệp:", current_plans['plan_id'] + " - " + current_plans['target_skill'])
+                real_pid = plan_choice.split(" - ")[0]
+                real_skill = " - ".join(plan_choice.split(" - ")[1:])
+            else:
+                real_pid = "IEP-GEN"
+                real_skill = st.text_input("Kỹ năng can thiệp tạm thời:", value="Kỹ năng thích ứng lớp học")
+                
+            rec_date = st.date_input("Ngày quan sát:", date.today())
+            score = st.slider("Mức độ độc lập / tự chủ (Thang 1 - 5):", 1, 5, 3, 
+                              help="1: Cần cầm tay chỉ việc | 3: Cần gợi ý hình ảnh/lời nói | 5: Hoàn toàn tự chủ")
+            obs_note = st.text_input("Ghi chú tiến triển cụ thể:")
+            
+            if st.form_submit_button("Lưu Điểm Tiến Trình"):
                 c = conn.cursor()
-                c.execute("INSERT INTO progress_logs (plan_id, student_id, logged_by, record_date, score, notes) VALUES (?, ?, ?, ?, ?, ?)",
-                          (real_pid, sel_s, current_username, str(log_d), log_score, log_note))
+                c.execute("INSERT INTO progress_logs (plan_id, student_id, logged_by, record_date, target_skill, score, notes) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                          (real_pid, sel_student, current_username, str(rec_date), real_skill, score, obs_note))
                 conn.commit()
-                st.success("Đã ghi nhận dữ liệu tiến triển!")
+                st.success("Đã lưu chỉ số tiến triển thành công!")
                 st.rerun()
 
-    with col_viz:
-        st.subheader("Biểu đồ Chuỗi Thời gian (Time-series Tracking)")
-        df_logs = pd.read_sql(f"SELECT record_date, score, notes, logged_by FROM progress_logs WHERE student_id='{sel_s}' ORDER BY record_date ASC", conn)
+    with col_chart:
+        st.subheader("Biểu Đồ Xu Hướng Mức Độ Tự Chủ")
+        df_logs = pd.read_sql(f"SELECT record_date, target_skill, score, notes, logged_by FROM progress_logs WHERE student_id='{sel_student}' ORDER BY record_date ASC", conn)
         
         if not df_logs.empty:
+            # Biểu đồ phân tích theo từng kỹ năng mục tiêu (tính năng gốc)
             fig = px.line(
-                df_logs, x="record_date", y="score", markers=True, text="score",
-                title=f"Đồ thị mức độ tự chủ của học sinh {sel_s} theo thời gian",
-                labels={"score": "Thang điểm độc lập (1-5)", "record_date": "Ngày đánh giá"}
+                df_logs, 
+                x="record_date", 
+                y="score", 
+                color="target_skill",
+                markers=True,
+                title=f"Đồ thị theo dõi mức độ tự chủ của học sinh {sel_student}",
+                labels={"score": "Điểm tự chủ (1-5)", "record_date": "Ngày đánh giá", "target_skill": "Mục tiêu kỹ năng"}
             )
-            fig.update_traces(textposition="top center", line=dict(width=3, color="#0284C7"))
+            fig.update_traces(line=dict(width=3))
             fig.update_yaxes(range=[0.5, 5.5], tickvals=[1, 2, 3, 4, 5])
             st.plotly_chart(fig, use_container_width=True)
             st.dataframe(df_logs, use_container_width=True)
         else:
-            st.info("Chưa có dữ liệu tiến triển cho học sinh này.")
+            st.info(f"Chưa có dữ liệu tiến triển cho học sinh {sel_student}. Hãy nhập phiếu bên trái để bắt đầu vẽ biểu đồ.")
 
 # ==========================================
 # BƯỚC 6: RÀ SOÁT & CHUYỂN TIẾP
 # ==========================================
-elif step == "Bước 6: Rà soát & Chuyển tiếp":
-    st.header("Bước 6: Rà soát Định kỳ & Lập Hồ sơ Chuyển tiếp")
-    st.write("Đảm bảo quá trình hỗ trợ không bị gián đoạn khi học sinh chuyển lớp hoặc chuyển cấp học.")
+elif step == "5. Rà soát & Chuyển tiếp":
+    st.header("Bước 6: Rà Soát Định Kỳ & Hồ Sơ Chuyển Tiếp Cấp Học")
+    st.write("Đảm bảo quá trình hỗ trợ liên tục, không bị gián đoạn thông tin khi học sinh lên lớp mới hoặc chuyển trường.")
     
     trans_records = pd.read_sql("""SELECT t.id, t.student_id, s.alias_name, s.grade, t.review_date, t.summary, t.transition_plan, u.full_name as reviewer 
                                    FROM transition_reviews t 
@@ -430,38 +472,43 @@ elif step == "Bước 6: Rà soát & Chuyển tiếp":
                                    LEFT JOIN users u ON t.reviewer_username = u.username""", conn)
     st.dataframe(trans_records, use_container_width=True)
     
-    if current_role == "Cán bộ Tư vấn học sinh (Điều phối)":
+    if ROLE_PERMISSIONS[current_role]["can_trans"]:
         st.divider()
-        st.subheader("📝 Lập Hồ sơ Chuyển tiếp Mới")
+        st.subheader("📝 Lập Hồ Sơ Chuyển Tiếp / Bàn Giao Mới")
         with st.form("form_trans"):
             t_sid = st.selectbox("Chọn học sinh chuyển cấp/chuyển lớp:", pd.read_sql("SELECT student_id FROM students", conn)['student_id'].tolist())
             t_sum = st.text_area("Tóm tắt tiến bộ và các mục tiêu đã hoàn thành:")
             t_plan = st.text_area("Các lưu ý về giác quan và chiến lược cần chuyển giao cho thầy cô năm sau:")
             
-            if st.form_submit_button("Lưu & Phê duyệt Hồ sơ Bàn giao"):
+            if st.form_submit_button("Lưu & Phê Duyệt Hồ Sơ Bàn Giao"):
                 c = conn.cursor()
                 c.execute("INSERT INTO transition_reviews (student_id, reviewer_username, review_date, summary, transition_plan) VALUES (?, ?, ?, ?, ?)",
                           (t_sid, current_username, str(date.today()), t_sum, t_plan))
                 conn.commit()
-                st.success("Đã hoàn thành hồ sơ chuyển tiếp!")
+                st.success("Đã lưu hồ sơ chuyển tiếp bàn giao thành công!")
                 st.rerun()
     else:
-        st.caption("🔒 *Chỉ Cán bộ Tư vấn học sinh (Điều phối ca) mới có quyền tạo biên bản chuyển tiếp chính thức.*")
+        st.caption("🔒 *Chỉ Cán bộ Tư vấn học sinh (Điều phối ca) mới có quyền phê duyệt biên bản chuyển tiếp chính thức.*")
 
 # ==========================================
-# BÁO CÁO DỮ LIỆU & TỔNG QUAN
+# TỔNG HỢP BÁO CÁO & MÔ PHỎNG
 # ==========================================
-elif step == "📊 Báo cáo Dữ liệu":
-    st.header("Báo Cáo Tổng Hợp & Quản Lý Dữ Liệu PoC")
+elif step == "📊 Báo cáo Dữ liệu & Mô phỏng":
+    st.header("Báo Cáo Giám Sát Toàn Diện Hệ Thống PoC")
+    st.markdown("Dữ liệu phục vụ nghiệm thu và đánh giá mô hình thực nghiệm:")
     
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Người dùng hệ thống", len(pd.read_sql("SELECT username FROM users", conn)))
-    m2.metric("Tổng số học sinh (Ca)", len(pd.read_sql("SELECT student_id FROM students", conn)))
-    m3.metric("Kế hoạch IEP đang chạy", len(pd.read_sql("SELECT plan_id FROM iep_plans", conn)))
-    m4.metric("Dữ liệu theo dõi", len(pd.read_sql("SELECT id FROM progress_logs", conn)))
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Tổng số người dùng", len(pd.read_sql("SELECT username FROM users", conn)))
+    c2.metric("Tổng số ca học sinh", len(pd.read_sql("SELECT student_id FROM students", conn)))
+    c3.metric("Kế hoạch IEP đang chạy", len(pd.read_sql("SELECT plan_id FROM iep_plans", conn)))
+    c4.metric("Bản ghi tiến triển", len(pd.read_sql("SELECT id FROM progress_logs", conn)))
     
-    st.subheader("Danh sách Tài khoản Người dùng & Phân vai (RBAC)")
+    st.divider()
+    st.subheader("1. Danh mục Toàn bộ Ca Học Sinh Mẫu (Benchmark Case Studies)")
+    st.dataframe(pd.read_sql("SELECT * FROM students", conn), use_container_width=True)
+    
+    st.subheader("2. Danh sách Tài khoản & Phân quyền Hệ thống (RBAC)")
     st.dataframe(pd.read_sql("SELECT username, full_name, role, assigned_scope FROM users", conn), use_container_width=True)
     
-    st.subheader("Danh mục 6 Ca Lâm Sàng Học Đường Giả Định")
-    st.dataframe(pd.read_sql("SELECT * FROM students", conn), use_container_width=True)
+    st.subheader("3. Toàn bộ Lịch sử Sàng lọc Nguy cơ Đã Ghi Nhận")
+    st.dataframe(pd.read_sql("SELECT * FROM screenings ORDER BY id DESC", conn), use_container_width=True)
